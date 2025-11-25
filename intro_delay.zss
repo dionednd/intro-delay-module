@@ -1,0 +1,293 @@
+# == BBTAG Intro Module v 1.0.0 == #
+#
+#	by dionednd
+#
+#	Commissioned by SkeleJ64
+#
+
+# == Changelog == #
+#
+#	v 0.0.1
+#	- Implemented basic intro delay
+#
+#	v 0.0.2
+#	- Added Camera parameters
+#	- Fixed camera visual issues with characters that have off screen intros.
+#
+#	v 0.0.3
+#	- Added roll orders 1 and 2
+#
+#	v 0.0.4
+#	- Added roll orders 3 and 4
+#
+#	v 0.0.5
+#	- Added special intro support
+#
+#	v 0.0.6
+#	- Added music mute and winner/loser zoom from foobs' extended intro winpose module (go check out foobs' extended intro winpose module)
+#
+#	v 0.0.7
+#	- Added off-screen intro support
+#
+#	v 0.0.8
+#	- Fixed bug where the characters would be frozen at intro state
+#
+#	v 0.0.9
+#	- Added Intro Movement
+#
+#	v 1.0.0 (Public Release)
+#	- Fixed AI bugs from previous version
+#	- Implemented simple AI from foobs' extended intro winpose module (go check out foobs' extended intro winpose module)
+#
+
+
+# == How To Install == #
+#
+#	1. Open your config.ini
+#	2. look for States in [Common]
+#	3. add ", data/intro_delay_specialintros.zss, data/intro_delay.zss" to your states.
+#	4. make sure that intro_delay_specialintros.zss comes first before intro_delay.zss
+#
+
+# == Additional Notes == #
+#
+#	This module was tested with foobs' extended intro winpose module and isn't compatible with foobs' module.
+#	This module wasn't made to compliment foobs' extended intro winpose module, so expect bugs when you're using both.
+#	some features were imported into this module due to demand.
+
+# == Normal States == #
+
+[StateDef 1900000; type: S; ctrl: 0; velset: 0, 0;]
+
+
+if selfAnimExist(190) {
+	changeAnim{value: 190}
+}
+else if selfAnimExist(191) {
+	changeAnim{value: 191}
+}
+
+if memberNo = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(bbtag_introState) && player(1), map(bbtag_specialIntroActive) < 1 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) {
+	changeState{value: cond(Const(PreIntroState),Const(PreIntroState),190)}
+}
+
+# == Global States == #
+
+[StateDef -4]
+if playerno < 9 {
+	if player(1), map(bbtag_introMovement) || player(1), map(bbtag_introSkipDisabled) && !isHelper && roundstate < 2
+	{
+		assertspecial{flag:roundnotskip;}
+	}
+
+ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo = 1
+{
+	# Settings
+	if roundstate = 0
+	{
+		# Roll Order
+		# 1 = p1 - right to left / p2 - left to right
+		# 2 = p1 - left to right / p2 - right to left
+		# 3 = left to right for both teams (like in BBTAG)
+		# 4 = right to left for both teams
+		player(1), map(bbtag_rollOrder) := 3;
+
+		# Pause (can be 0)
+		player(1), map(bbtag_pauseLength) := 60;
+
+		# Camera Lag
+		player(1), map(bbtag_cameraLag) := 0.9;
+
+		# Camera Zoom
+		player(1), map(bbtag_cameraZoom) := 1.2;
+
+		# Disable Intro Music for 1st Round 1  = On, 0 = Off
+		player(1), map(bbtag_introMusicFirstRound) := 1;
+
+		# Cam Focus on Character During Outro 0 = Off 1 = Winner 2 = Loser
+		player(1), map(bbtag_outroFocus) := 1;
+
+		# Cam Zoom during Outro >1 = Zoom in <1 = Zoom out
+		player(1), map(bbtag_outroZoom) := 1.5;
+
+		# Intro Movement 1 = On 0 = Off
+		player(1), map(bbtag_introMovement) := 1;
+
+		# Disable Taunting during Intro Movement (ignored if Intro Movement is off.) this option was added to prevent from players gaining advantage by taunting during intro, where the enemy can't attack them. however, if your characters somehow have no meter gain during taunts, you can enable this just for fun.
+		player(1), map(bbtag_introMovementTauntDisabled) := 1;
+
+		# Disable Switching Characters (Tag Team Mode Only) during Intro Movement (ignored if Intro Movement is off.)
+		player(1), map(bbtag_introMovementTagDisabled) := 1;
+		
+		# Time for the players to move during intro. ignored if intro movement is disabled and Pause Length is taken instead.
+		player(1), map(bbtag_introMovementTime) := 240;
+
+		# Disable Intro Skip. always on whenever Intro Movement is on.
+		player(1), map(bbtag_introSkipDisabled) := 1;
+	}
+	# DO NOT TOUCH THE NEXT LINES UNLESS YOU DON'T KNOW WHAT YOU'RE DOING.
+	if map(bbtag_specialIntro) != 1 {call specialIntroCheck();}
+
+	if !player(1), map(bbtag_introState) && !player(1), map(bbtag_teamIntroState)
+	{
+		player(1), map(bbtag_introState) := cond(player(1), map(bbtag_rollOrder) = 4,2, 1);
+		player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_rollOrder) = 1,1, cond(teamMode = turns,1,NumPartner + 1));
+	}
+	AssertSpecial{flag: NoBarDisplay}
+	if player(1), map(bbtag_introState) > 0 && player(1), map(bbtag_introState) < 3 && map(bbtag_specialIntro) != 1 && player(1), map(bbtag_specialIntroActive) < 1
+	{
+		AssertSpecial{flag: Intro}
+		if teamSide = player(1), map(bbtag_introState)
+		{
+			if memberNo = player(1), map(bbtag_teamIntroState)
+			{
+				# let them continue their animation and focus the camera on them
+				let z = gamewidth/const240p(320/player(1), map(bbtag_cameraZoom));
+				zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:pos x*camerazoom, 0; stagebound:1; camerabound:0;}
+
+				if stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0)
+				{
+					map(bbtag_playerIntroFinished) := 1;
+					if player(1), map(bbtag_rollOrder) = 1 {player(1), map(bbtag_teamIntroState) := player(1), map(bbtag_teamIntroState) + 1;}
+					else if player(1), map(bbtag_rollOrder) = 2 {player(1), map(bbtag_teamIntroState) := player(1), map(bbtag_teamIntroState) - 1;}
+					else if player(1), map(bbtag_rollOrder) = 3 {player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_introState) = 1, player(1), map(bbtag_teamIntroState) - 1, player(1), map(bbtag_teamIntroState) + 1);}
+					else if player(1), map(bbtag_rollOrder) = 4 {player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_introState) = 2, player(1), map(bbtag_teamIntroState) - 1, player(1), map(bbtag_teamIntroState) + 1);}
+
+					if (player(1), map(bbtag_teamIntroState) > cond(teamMode = turns,1,NumPartner + 1) && player(1), map(bbtag_rollOrder) = 1)
+					|| (player(1), map(bbtag_teamIntroState) < 1 && player(1), map(bbtag_rollOrder) = 2)
+					|| ((player(1), map(bbtag_teamIntroState) < 1 && player(1), map(bbtag_rollOrder) = 3 && player(1), map(bbtag_introState) = 1) || (player(1), map(bbtag_teamIntroState) > cond(teamMode = turns,1,NumPartner + 1) && player(1), map(bbtag_rollOrder) = 3 && player(1), map(bbtag_introState) = 2))
+					|| ((player(1), map(bbtag_teamIntroState) > cond(teamMode = turns,1,NumPartner + 1) && player(1), map(bbtag_rollOrder) = 4 && player(1), map(bbtag_introState) = 1) || (player(1), map(bbtag_teamIntroState) < 1 && player(1), map(bbtag_rollOrder) = 4 && player(1), map(bbtag_introState) = 2))
+					{
+						player(1), map(bbtag_introState) := cond(player(1), map(bbtag_rollOrder) = 4, cond(player(1), map(bbtag_introState) = 2,1,3),player(1), map(bbtag_introState) + 1);
+						if player(1), map(bbtag_rollOrder) = 1 {player(1), map(bbtag_teamIntroState) := 1;}
+						else if player(1), map(bbtag_rollOrder) = 2 {player(1), map(bbtag_teamIntroState) := cond(teamMode = turns,1,NumPartner + 1);}
+						else if player(1), map(bbtag_rollOrder) = 3 {player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_introState) = 1, cond(teamMode = turns,1,NumPartner + 1), 1);}
+						else if player(1), map(bbtag_rollOrder) = 4 {player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_introState) = 2, cond(teamMode = turns,1,NumPartner + 1), 1);}
+					}
+				}
+			}
+			else
+			{
+				if map(bbtag_playerIntroFinished) != 1
+				{
+					ChangeState{value:1900000; continue:0}
+				}
+			}
+		}
+		else if teamSide != player(1), map(bbtag_introState)
+		{
+			if map(bbtag_playerIntroFinished) != 1
+			{
+				ChangeState{value:1900000; continue:0}
+			}
+		}
+	}
+	if player(1), map(bbtag_introState) = 3
+	{
+		if player(1), map(introMovementTime) = 0 && player(1), map(introMovementTimeFinished) = 0 && player(1), map(bbtag_introMovement)
+		{
+			player(1), map(introMovementTime) := player(1), map(bbtag_introMovementTime);
+		}
+		if !ctrl && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && player(1), map(bbtag_introMovement) {ctrlSet{value: 1}}
+		if player(1), map(introMovementTime) > 0 && player(1), map(bbtag_introMovement)
+		{
+			AssertSpecial{flag: Intro}
+			
+			if playerno = 1 {player(1), map(introMovementTime) := player(1), map(introMovementTime) - 1;}
+			if player(1), map(introMovementTime) = 0 && player(1), map(introMovementTimeFinished) = 0 {player(1), map(introMovementTimeFinished) := 1;}
+		}
+		if player(1), map(bbtag_specialIntroActive) < 1
+		{
+			let z = gamewidth/const240p(320/1);
+			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(player(1), pos x*camerazoom + player(2), pos x*camerazoom) / 2, 0; stagebound:1; camerabound:0;}
+		}
+	}
+
+	if player(1), map(bbtag_specialIntroActive) > 0 && stateno != 19000000 && map(bbtag_specialIntro) != 1
+	{
+		ChangeState{value:1900000; continue:0}
+	}
+
+}
+
+if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && memberNo = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(bbtag_introState) && !isHelper && player(1), map(bbtag_specialIntroActive) = 0
+{
+	map(bbtag_playerIntroFinished) := 1;
+	if player(1), map(bbtag_rollOrder) = 1 {player(1), map(bbtag_teamIntroState) := player(1), map(bbtag_teamIntroState) + 1;}
+	else if player(1), map(bbtag_rollOrder) = 2 {player(1), map(bbtag_teamIntroState) := player(1), map(bbtag_teamIntroState) - 1;}
+	else if player(1), map(bbtag_rollOrder) = 3 {player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_introState) = 1, player(1), map(bbtag_teamIntroState) - 1, player(1), map(bbtag_teamIntroState) + 1);}
+	else if player(1), map(bbtag_rollOrder) = 4 {player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_introState) = 2, player(1), map(bbtag_teamIntroState) - 1, player(1), map(bbtag_teamIntroState) + 1);}
+
+	if (player(1), map(bbtag_teamIntroState) > cond(teamMode = turns,1,NumPartner + 1) && player(1), map(bbtag_rollOrder) = 1)
+	|| (player(1), map(bbtag_teamIntroState) < 1 && player(1), map(bbtag_rollOrder) = 2)
+	|| ((player(1), map(bbtag_teamIntroState) < 1 && player(1), map(bbtag_rollOrder) = 3 && player(1), map(bbtag_introState) = 1) || (player(1), map(bbtag_teamIntroState) > cond(teamMode = turns,1,NumPartner + 1) && player(1), map(bbtag_rollOrder) = 3 && player(1), map(bbtag_introState) = 2))
+	|| ((player(1), map(bbtag_teamIntroState) > cond(teamMode = turns,1,NumPartner + 1) && player(1), map(bbtag_rollOrder) = 4 && player(1), map(bbtag_introState) = 1) || (player(1), map(bbtag_teamIntroState) < 1 && player(1), map(bbtag_rollOrder) = 4 && player(1), map(bbtag_introState) = 2))
+	{
+		player(1), map(bbtag_introState) := cond(player(1), map(bbtag_rollOrder) = 4, cond(player(1), map(bbtag_introState) = 2,1,3),player(1), map(bbtag_introState) + 1);
+		if player(1), map(bbtag_rollOrder) = 1 {player(1), map(bbtag_teamIntroState) := 1;}
+		else if player(1), map(bbtag_rollOrder) = 2 {player(1), map(bbtag_teamIntroState) := cond(teamMode = turns,1,NumPartner + 1);}
+		else if player(1), map(bbtag_rollOrder) = 3 {player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_introState) = 1, cond(teamMode = turns,1,NumPartner + 1), 1);}
+		else if player(1), map(bbtag_rollOrder) = 4 {player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_introState) = 2, cond(teamMode = turns,1,NumPartner + 1), 1);}
+	}
+}
+
+
+if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && player(1), map(bbtag_specialIntroActive) > 0 && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0)
+{
+	player(1), map(bbtag_specialIntroActive) := player(1), map(bbtag_specialIntroActive) - 1;
+}
+
+if roundstate = [-1, 2] && player(1), map(bbtag_introState) = 3 && !isHelper && teamSide = [1,2]
+{
+
+	if player(1), map(bbtag_introMovement) && roundstate < 2
+	{
+		shiftInput{input: a; output: none}
+		shiftInput{input: b; output: none}
+		shiftInput{input: c; output: none}
+		shiftInput{input: x; output: none}
+		shiftInput{input: y; output: none}
+		shiftInput{input: z; output: none}
+		if player(1), map(bbtag_introMovementTauntDisabled) {shiftInput{input: s; output: none}}
+		if player(1), map(bbtag_introMovementTagDisabled)
+		{
+			shiftInput{input: d; output: none}
+			shiftInput{input: w; output: none}
+		}
+		AssertSpecial{flag: NoIntroReset;flag2:NoAICheat;flag3:NoStandGuard;flag4:NoCrouchGuard;flag5:NoAirGuard;}
+		if ailevel {map(ailevel_) := ailevel;}
+		AssertSpecial{flag: NoAiLevel}
+		if map(ailevel_) {
+			let x = abs(p2bodydist x);
+			# get close
+			if $g = [const240p(70),const240p(110)] {AssertInput{flag:F}} # imported ai code from foobs' extended intro winpose module.
+		}
+	}
+		player(1), map(bbtag_introMovementActive) := 1;
+	}
+	else if player(1), map(bbtag_introMovement) && roundstate = 2 && player(1), map(bbtag_introMovementActive) = 1
+	{
+		shiftInput{input: none; output: none}
+		player(1), map(bbtag_introMovementActive) := 0;
+	}
+}
+
+
+if roundstate = [0,1] && playerno < 3 {	
+	# mutes the music during round one.
+	if player(1), map(bbtag_introMusicFirstRound) && roundno = 1 {assertspecial{flag:nomusic;}}
+}
+
+
+ignorehitpause if roundstate = 4 && !ishelper && playerno < 3 {
+	# disables PotS characters' own zoom
+	if authorname = "Phantom.of.the.Server" && map(cfg_winzoom) {map(cfg_winzoom):= 0;}
+	
+	# zoom zoom
+	if ((player(1), map(bbtag_outroFocus) = 1 && (winko||wintime)) || (player(1), map(bbtag_outroFocus) = 2 && (loseko||losetime))) && player(1), map(bbtag_outroZoom) > 1 {
+		let z = gamewidth/const240p(320/player(1), map(bbtag_outroZoom));
+		zoom{scale:$z;lag:0.97; pos:(pos x/$z)*camerazoom, pos y; stagebound:1; camerabound:0;}
+	}
+}
+
+}

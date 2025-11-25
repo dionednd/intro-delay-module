@@ -1,0 +1,40 @@
+# == Special Intros == #
+#
+#	Declare Special Intros here.
+#
+#	Intro Delay Module is disabled when a Special Intro is active.
+#
+#	How to declare special intros:
+#	
+#	1. Go to the character's common states .cns file
+#	2. Look for state 190 (or preintro state)
+#	3. Look for special intros declared inside the preintro state
+#
+#	Most special intros are declared with triggers like p2name = "Enemy Name"
+#	you just have to copy and paste that here with the character's name.
+#
+#	you don't have to do it vice versa for the module to detect it, but to prevent issues, define it vice versa.
+#
+#	Commissioned by SkeleJ64
+#
+
+[Function specialIntroCheck()]
+
+	# Special Intros
+	if (name = "Ragna the Bloodedge"
+	&& p2name = "Jin Kisaragi")
+	|| (name = "Jin Kisaragi"
+	&& p2name = "Ragna the Bloodedge")
+	{
+		map(bbtag_specialIntro) := 1;
+		player(1), map(bbtag_specialIntroActive) := player(1), map(bbtag_specialIntroActive) + 1;
+		changeState{value: cond(Const(PreIntroState),Const(PreIntroState),190)}
+	}
+
+	# Off-Screen Intros (191 & 194 for merkava)
+	if (name = "Merkava" && p2name != "Row Boat Weiss" && p2name != "Pistrix" && p2name != "Vlov Arkhangel") # I just added the triggers from intros that weren't off screen then reversed them.
+	{
+		if map(bbtag_playerIntroFinished) != 1 && stateno = 1900000 {AssertSpecial{enabled: 1;flag: Invisible}}else{AssertSpecial{enabled: 0;flag: Invisible}}
+
+
+	}
