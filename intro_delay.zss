@@ -260,9 +260,8 @@ if roundstate = [-1, 2] && player(1), map(bbtag_introState) = 3 && !isHelper && 
 		if map(ailevel_) {
 			let x = abs(p2bodydist x);
 			# get close
-			if $x = [const240p(70),const240p(110)] {AssertInput{flag:F}} # imported ai code from foobs' extended intro winpose module.
+			if $x >= const240p(70) {AssertInput{flag:F;}} # imported ai code from foobs' extended intro winpose module.
 		}
-	}
 		player(1), map(bbtag_introMovementActive) := 1;
 	}
 	else if player(1), map(bbtag_introMovement) && roundstate = 2 && player(1), map(bbtag_introMovementActive) = 1
@@ -289,6 +288,5 @@ ignorehitpause if roundstate = 4 && !ishelper && playerno < 3 {
 		zoom{scale:$z;lag:0.97; pos:(pos x/$z)*camerazoom, pos y; stagebound:1; camerabound:0;}
 	}
 }
-
 
 }
