@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.0 == #
+# == BBTAG Intro Module v 1.0.1 == #
 #
 #	by dionednd
 #
@@ -39,6 +39,10 @@
 #	- Fixed AI bugs from previous version
 #	- Implemented simple AI from foobs' extended intro winpose module (go check out foobs' extended intro winpose module)
 #
+#	v 1.0.1
+#	- Fixed an issue where players could damage each other during intro movement if a character has a movement option that can damage the enemy (like Merkava's Air Dash)
+#	- Reduced the intro movement time to 3 seconds
+#	- Fixed issue where the selected palette wasn't showing (idk why i didn't notice that this was being caused by my module and not a nightly bug)
 
 
 # == How To Install == #
@@ -120,11 +124,15 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		player(1), map(bbtag_introMovementTagDisabled) := 1;
 		
 		# Time for the players to move during intro. ignored if intro movement is disabled and Pause Length is taken instead.
-		player(1), map(bbtag_introMovementTime) := 240;
+		player(1), map(bbtag_introMovementTime) := 180;
 
 		# Disable Intro Skip. always on whenever Intro Movement is on.
 		player(1), map(bbtag_introSkipDisabled) := 1;
+
+		# sets the palette of the player
+		RemapPal{source:1,1;dest:1,palno}
 	}
+
 	# DO NOT TOUCH THE NEXT LINES UNLESS YOU DON'T KNOW WHAT YOU'RE DOING.
 	if map(bbtag_specialIntro) != 1 {call specialIntroCheck();}
 
@@ -242,6 +250,7 @@ if roundstate = [-1, 2] && player(1), map(bbtag_introState) = 3 && !isHelper && 
 
 	if player(1), map(bbtag_introMovement) && roundstate < 2
 	{
+		notHitBy{value: SCA} #just in case your character has damaging dashes or something
 		shiftInput{input: a; output: none}
 		shiftInput{input: b; output: none}
 		shiftInput{input: c; output: none}
