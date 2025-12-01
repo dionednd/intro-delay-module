@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.1 == #
+# == BBTAG Intro Module v 1.0.2 == #
 #
 #	by dionednd
 #
@@ -43,7 +43,23 @@
 #	- Fixed an issue where players could damage each other during intro movement if a character has a movement option that can damage the enemy (like Merkava's Air Dash)
 #	- Reduced the intro movement time to 3 seconds
 #	- Fixed issue where the selected palette wasn't showing (idk why i didn't notice that this was being caused by my module and not a nightly bug)
+#
+#	v 1.0.2
+#	- Added more compatibility for tag team mode. (non-team leader players will get out of the screen as soon as both teams' intros are played.)
+#	- Disabled intro movement time for training mode. (isn't really needed there)
+#	- Adjusted the camera during introstate = 3 to only apply whenever intro movement is over
 
+#	Plans for v 1.0.3
+#	- Stage Intro Option
+#	- Stage Intro scrolls through the stage. i plan on having 3 scroll orders for the stage intro
+#	- Stage Intro Scroll Order 1 = Zoom out from the center of the stage then start char intros
+#	- Stage Intro Scroll Order 2 = Right To Left, fade to black then fade into the center of the stage then start char intros
+#	- Stage Intro Scroll Order 3 = Left To Right, fade to black then fade into the center of the stage then start char intros
+#	- Stage Intro Scroll Order 4 = Random
+#	- Stage Intro Text that displays the stage name
+#	- Delay before the first player to intro (so the round doesn't just jump into the intros)
+
+#	but before v 1.0.3 i'll be taking a short break cuz i need to study for finals exam.
 
 # == How To Install == #
 #
@@ -196,18 +212,25 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		{
 			player(1), map(introMovementTime) := player(1), map(bbtag_introMovementTime);
 		}
-		if !ctrl && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && player(1), map(bbtag_introMovement) {ctrlSet{value: 1}}
+		if !ctrl && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && player(1), map(bbtag_introMovement) && TeamLeader = playerno {ctrlSet{value: 1}}
+		if TeamLeader != playerno && teamMode = Tag
+		{
+			# if teamMode is tag and char is not the teamleader, take away control and take them out the screen
+			if ctrl {ctrlSet{value: 0}}
+			if stateno = 0 {tagOut{stateno: const(StateTagLeavingScreen)}}
+		}
+		if player(1), map(bbtag_specialIntroActive) < 1 && player(1), map(introMovementTimeFinished) = 0 && roundstate < 2
+		{
+			let z = gamewidth/const240p(320/1);
+			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(player(1), pos x*camerazoom + player(2), pos x*camerazoom) / 2, 0; stagebound:1; camerabound:0;}
+		}
 		if player(1), map(introMovementTime) > 0 && player(1), map(bbtag_introMovement)
 		{
 			AssertSpecial{flag: Intro}
 			
 			if playerno = 1 {player(1), map(introMovementTime) := player(1), map(introMovementTime) - 1;}
+			if playerno = 1 && gamemode = "training" {player(1), map(introMovementTime) := 0;}
 			if player(1), map(introMovementTime) = 0 && player(1), map(introMovementTimeFinished) = 0 {player(1), map(introMovementTimeFinished) := 1;}
-		}
-		if player(1), map(bbtag_specialIntroActive) < 1
-		{
-			let z = gamewidth/const240p(320/1);
-			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(player(1), pos x*camerazoom + player(2), pos x*camerazoom) / 2, 0; stagebound:1; camerabound:0;}
 		}
 	}
 
