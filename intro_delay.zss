@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.2 == #
+# == BBTAG Intro Module v 1.0.3 == #
 #
 #	by dionednd
 #
@@ -48,16 +48,16 @@
 #	- Added more compatibility for tag team mode. (non-team leader players will get out of the screen as soon as both teams' intros are played.)
 #	- Disabled intro movement time for training mode. (isn't really needed there)
 #	- Adjusted the camera during introstate = 3 to only apply whenever intro movement is over
-
-#	Plans for v 1.0.3
-#	- Stage Intro Option
-#	- Stage Intro scrolls through the stage. i plan on having 3 scroll orders for the stage intro
-#	- Stage Intro Scroll Order 1 = Zoom out from the center of the stage then start char intros
-#	- Stage Intro Scroll Order 2 = Right To Left, fade to black then fade into the center of the stage then start char intros
-#	- Stage Intro Scroll Order 3 = Left To Right, fade to black then fade into the center of the stage then start char intros
-#	- Stage Intro Scroll Order 4 = Random
-#	- Stage Intro Text that displays the stage name
-#	- Delay before the first player to intro (so the round doesn't just jump into the intros)
+#
+#	v 1.0.3
+#	- Added Stage Intros
+#	- Added Stage Intro Scroll Order 1
+#	- Added Delay before players do their intro
+#	- Added Music Ducking during player intros (player(1), map(bbtag_introMusicFirstRound) = 2) (will add interpolation later)
+#
+#	Plans for v 1.0.4
+#	- Stage name display during stage intro
+#	- Outro Delay
 
 #	but before v 1.0.3 i'll be taking a short break cuz i need to study for finals exam.
 
@@ -87,7 +87,9 @@ else if selfAnimExist(191) {
 	changeAnim{value: 191}
 }
 
-if memberNo = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(bbtag_introState) && player(1), map(bbtag_specialIntroActive) < 1 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) {
+if memberNo = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(bbtag_introState) && player(1), map(bbtag_specialIntroActive) < 1 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0)
+&& (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
+{
 	changeState{value: cond(Const(PreIntroState),Const(PreIntroState),190)}
 }
 
@@ -95,7 +97,7 @@ if memberNo = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(
 
 [StateDef -4]
 if playerno < 9 {
-	if player(1), map(bbtag_introMovement) || player(1), map(bbtag_introSkipDisabled) && !isHelper && roundstate < 2
+	if (player(1), map(bbtag_introMovement) || player(1), map(bbtag_introSkipDisabled) || player(1), map(bbtag_stageIntro)) && !isHelper && roundstate < 2
 	{
 		assertspecial{flag:roundnotskip;}
 	}
@@ -103,7 +105,7 @@ if playerno < 9 {
 ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo = 1
 {
 	# Settings
-	if roundstate = 0
+	if roundstate <= 0
 	{
 		# Roll Order
 		# 1 = p1 - right to left / p2 - left to right
@@ -121,8 +123,11 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		# Camera Zoom
 		player(1), map(bbtag_cameraZoom) := 1.2;
 
-		# Disable Intro Music for 1st Round 1  = On, 0 = Off
-		player(1), map(bbtag_introMusicFirstRound) := 1;
+		# Disable Intro Music for 1st Round 1  = Mute Music, 0 = Enable Music, 2 = Duck Music Volume during character intros
+		player(1), map(bbtag_introMusicFirstRound) := 2;
+
+		# Duck Volume
+		player(1), map(bbtag_introMusicDuckVolume) := 50;
 
 		# Cam Focus on Character During Outro 0 = Off 1 = Winner 2 = Loser
 		player(1), map(bbtag_outroFocus) := 1;
@@ -145,8 +150,61 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		# Disable Intro Skip. always on whenever Intro Movement is on.
 		player(1), map(bbtag_introSkipDisabled) := 1;
 
+		# Enable Stage Intro.
+		player(1), map(bbtag_stageIntro) := 1;
+
+		# Stage Intro Scroll Order (Ignored if stage intro is disabled)
+		# 1 = Zoom out from the center of the stage then start char intros
+		player(1), map(bbtag_stageIntroScrollOrder) := 1;
+
+		# Stage Intro Duration
+		player(1), map(bbtag_stageIntroTime) := 240; #120 frames = 2 seconds
+
+		# Stage Intro Zoom
+		player(1), map(bbtag_stageIntroZoom) := 2.0;
+
+		# Delay before any of the intros begin (ignored if stage intro is disabled)
+		player(1), map(bbtag_IntroDelay) := 60; #120 frames = 2 seconds
+
 		# sets the palette of the player
 		RemapPal{source:1,1;dest:1,palno}
+	}
+	AssertSpecial{flag: NoBarDisplay}
+	# Stage Intro
+	if player(1), map(bbtag_stageIntro) && playerno = 1
+	{
+		if !player(1), map(bbtag_stageIntroFinished){AssertSpecial{flag: Intro}}
+		if !player(1), map(stageIntroTime) && !player(1), map(bbtag_stageIntroFinished) && !player(1), map(stageIntroBegun)
+		{
+			player(1), map(stageIntroBegun) := 1;
+			player(1), map(stageIntroTime) := player(1), map(bbtag_stageIntroTime);
+		}
+
+		if player(1), map(stageIntroTime) >= 0
+		{
+			let c = (256 -  (256*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime))));
+			AllPalFX{mul: $c, $c, $c;time: 2}
+			if player(1), map(bbtag_stageIntroScrollOrder) = 1
+			{	# (1.0 + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))) # 1.0 is the stage default zoom
+				let siz = gamewidth/const240p(320/(1.0 + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))));
+				zoom{scale:$siz;pos:(0/$siz)*camerazoom, 0;stagebound:1; camerabound:0}
+			}
+		}
+		if player(1), map(stageIntroTime) > (player(1), map(bbtag_IntroDelay) * -1)
+		{
+			if player(1), map(stageIntroTime) < 0
+			{
+				let fz = gamewidth/const240p(320/1);
+				zoom{scale:$fz;lag:player(1), map(bbtag_cameraLag); pos:(0/$siz)*camerazoom, 0; stagebound:1; camerabound:0}
+			}
+			player(1), map(stageIntroTime) := player(1), map(stageIntroTime) - 1;
+		}
+
+		if player(1), map(stageIntroTime) = (player(1), map(bbtag_IntroDelay) * -1) && !player(1), map(bbtag_stageIntroFinished)
+		{
+			player(1), map(bbtag_stageIntroFinished) := 1;
+		}
+
 	}
 
 	# DO NOT TOUCH THE NEXT LINES UNLESS YOU DON'T KNOW WHAT YOU'RE DOING.
@@ -157,17 +215,22 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		player(1), map(bbtag_introState) := cond(player(1), map(bbtag_rollOrder) = 4,2, 1);
 		player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_rollOrder) = 1,1, cond(teamMode = turns,1,NumPartner + 1));
 	}
-	AssertSpecial{flag: NoBarDisplay}
 	if player(1), map(bbtag_introState) > 0 && player(1), map(bbtag_introState) < 3 && map(bbtag_specialIntro) != 1 && player(1), map(bbtag_specialIntroActive) < 1
 	{
+
 		AssertSpecial{flag: Intro}
-		if teamSide = player(1), map(bbtag_introState)
+		if teamSide = player(1), map(bbtag_introState) && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
 		{
+			# Music Volume Ducking
+			if player(1), map(bbtag_introMusicFirstRound) = 2
+			{
+				ModifyBGM{volume:player(1), map(bbtag_introMusicDuckVolume)}
+			}
 			if memberNo = player(1), map(bbtag_teamIntroState)
 			{
 				# let them continue their animation and focus the camera on them
 				let z = gamewidth/const240p(320/player(1), map(bbtag_cameraZoom));
-				zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:pos x*camerazoom, 0; stagebound:1; camerabound:0;}
+				zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(pos x/$z)*camerazoom, 0; stagebound:1; camerabound:0;}
 
 				if stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0)
 				{
@@ -198,7 +261,7 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 				}
 			}
 		}
-		else if teamSide != player(1), map(bbtag_introState)
+		else
 		{
 			if map(bbtag_playerIntroFinished) != 1
 			{
@@ -206,8 +269,15 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 			}
 		}
 	}
+
 	if player(1), map(bbtag_introState) = 3
 	{
+		# Music Volume Ducking
+		if player(1), map(bbtag_introMusicFirstRound) = 2
+		{
+			ModifyBGM{volume:100}
+		}
+
 		if player(1), map(introMovementTime) = 0 && player(1), map(introMovementTimeFinished) = 0 && player(1), map(bbtag_introMovement)
 		{
 			player(1), map(introMovementTime) := player(1), map(bbtag_introMovementTime);
@@ -219,10 +289,10 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 			if ctrl {ctrlSet{value: 0}}
 			if stateno = 0 {tagOut{stateno: const(StateTagLeavingScreen)}}
 		}
-		if player(1), map(bbtag_specialIntroActive) < 1 && player(1), map(introMovementTimeFinished) = 0 && roundstate < 2
+		if player(1), map(bbtag_specialIntroActive) < 1 && player(1), map(introMovementTimeFinished) = 0 && roundstate < 2 && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
 		{
 			let z = gamewidth/const240p(320/1);
-			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(player(1), pos x*camerazoom + player(2), pos x*camerazoom) / 2, 0; stagebound:1; camerabound:0;}
+			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(((player(1), pos x + player(2), pos x)/$z)*camerazoom) / 2, 0; stagebound:1; camerabound:0;}
 		}
 		if player(1), map(introMovementTime) > 0 && player(1), map(bbtag_introMovement)
 		{
@@ -306,7 +376,8 @@ if roundstate = [-1, 2] && player(1), map(bbtag_introState) = 3 && !isHelper && 
 
 if roundstate = [0,1] && playerno < 3 {	
 	# mutes the music during round one.
-	if player(1), map(bbtag_introMusicFirstRound) && roundno = 1 {assertspecial{flag:nomusic;}}
+	if player(1), map(bbtag_introMusicFirstRound) = 1 && roundno = 1 {assertspecial{flag:nomusic;}}
+
 }
 
 
