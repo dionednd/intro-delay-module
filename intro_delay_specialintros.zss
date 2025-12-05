@@ -26,9 +26,31 @@
 	|| (name = "Jin Kisaragi"
 	&& p2name = "Ragna the Bloodedge")
 	{
-		map(bbtag_specialIntro) := 1;
-		player(1), map(bbtag_specialIntroActive) := player(1), map(bbtag_specialIntroActive) + 1;
-		changeState{value: cond(Const(PreIntroState),Const(PreIntroState),190)}
+		if map(bbtag_specialIntro) != 1 && player(1), map(bbtag_stageIntroFinished)
+		{
+			player(1), map(bbtag_specialIntroActive) := player(1), map(bbtag_specialIntroActive) + 1;
+		}
+
+		if player(1), map(bbtag_stageIntroFinished)
+		{
+			map(bbtag_specialIntro) := 1;
+		}
+
+		if (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro)) && map(bbtag_specialIntro) = 1
+		{
+			changeState{value: cond(Const(PreIntroState),Const(PreIntroState),190)}
+		}
+		else if !player(1), map(bbtag_stageIntroFinished) && player(1), map(bbtag_stageIntro) && map(bbtag_specialIntro) != 1
+		{
+				if (name = "Ragna the Bloodedge"
+				&& p2name = "Jin Kisaragi")
+				|| (name = "Jin Kisaragi"
+				&& p2name = "Ragna the Bloodedge")
+				{
+					AssertSpecial{enabled: 1;flag: Invisible}
+				}else{AssertSpecial{enabled: 0;flag: Invisible}} #if they're invisible in the start of the special intro, add them here.
+				ChangeState{value:1900000; continue:0}
+		}
 	}
 
 	# Off-Screen Intros (191 & 194 for merkava)
