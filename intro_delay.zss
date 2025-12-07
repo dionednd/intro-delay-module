@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.3 == #
+# == BBTAG Intro Module v 1.0.3a == #
 #
 #	by dionednd
 #
@@ -55,8 +55,13 @@
 #	- Added Delay before players do their intro
 #	- Added Music Ducking during player intros (player(1), map(bbtag_introMusicFirstRound) = 2) (will add interpolation later)
 #
+#	v 1.0.3a
+#	- Made stage intro camera smoother by adding camera lag. (will look rough if player(1), map(bbtag_IntroDelay) = 0?)
+#	- Changed Duck Volume to 75%.
+#	- Added Stage Name Text Support (only displays a placeholder text. will be fully implemented once strings are supported in IKEMEN GO.) (you can still use the implementation for your full games. that's the reason why i decided to add it)
+#	- Started Outro Delay implimentation (no functionality yet)
+#
 #	Plans for v 1.0.4
-#	- Stage name display during stage intro
 #	- Outro Delay
 
 #	but before v 1.0.3 i'll be taking a short break cuz i need to study for finals exam.
@@ -127,13 +132,7 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		player(1), map(bbtag_introMusicFirstRound) := 2;
 
 		# Duck Volume
-		player(1), map(bbtag_introMusicDuckVolume) := 50;
-
-		# Cam Focus on Character During Outro 0 = Off 1 = Winner 2 = Loser
-		player(1), map(bbtag_outroFocus) := 1;
-
-		# Cam Zoom during Outro >1 = Zoom in <1 = Zoom out
-		player(1), map(bbtag_outroZoom) := 1.5;
+		player(1), map(bbtag_introMusicDuckVolume) := 75;
 
 		# Intro Movement 1 = On 0 = Off
 		player(1), map(bbtag_introMovement) := 1;
@@ -164,7 +163,39 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		player(1), map(bbtag_stageIntroZoom) := 2.0;
 
 		# Delay before any of the intros begin (ignored if stage intro is disabled)
-		player(1), map(bbtag_IntroDelay) := 60; #120 frames = 2 seconds
+		player(1), map(bbtag_IntroDelay) := 60; #60 frames = 1 second
+
+		# Stage Text (Ignored if stage intro is disabled)
+		player(1), map(bbtag_stageText) := 0; #disabled for now. it doesn't display the stage's name due to engine limitations. once we get support for strings, i'll update this feature
+
+		# Stage Text Params
+		player(1), map(bbtag_stageTextFont) := -1;
+		player(1), map(bbtag_stageTextAlign) := 0;
+		player(1), map(bbtag_stageTextScaleX) := 1;
+		player(1), map(bbtag_stageTextScaleY) := 1;
+		player(1), map(bbtag_stageTextLayerno) := 0;
+		player(1), map(bbtag_stageTextPosX) := 160;
+		player(1), map(bbtag_stageTextPosY) := 120;
+		player(1), map(bbtag_stageTextColorR) := 256;
+		player(1), map(bbtag_stageTextColorG) := 256;
+		player(1), map(bbtag_stageTextColorB) := 256;
+
+		# Outro Delay
+		player(1), map(bbtag_outroDelay) := 1; # if enabled, outroFocus is ignored.
+
+		# Outro Delay Roll Order	
+		# 1 = Winners First (from p1), Losers Last (from p2)
+		# 2 = Losers First (from p2), Winners Last (from p1)
+		player(1), map(bbtag_outroRollOrder) := 1; # if enabled, outroFocus is ignored.
+		
+		# outro delay has no functionality yet.
+
+		# Cam Focus on Character During Outro 0 = Off 1 = Winner 2 = Loser
+		player(1), map(bbtag_outroFocus) := 1;
+
+		# Cam Zoom during Outro >1 = Zoom in <1 = Zoom out
+		player(1), map(bbtag_outroZoom) := 1.2;
+
 
 		# sets the palette of the player
 		RemapPal{source:1,1;dest:1,palno}
@@ -187,11 +218,24 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 			if player(1), map(bbtag_stageIntroScrollOrder) = 1
 			{	# (1.0 + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))) # 1.0 is the stage default zoom
 				let siz = gamewidth/const240p(320/(1.0 + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))));
-				zoom{scale:$siz;pos:(0/$siz)*camerazoom, 0;stagebound:1; camerabound:0}
+				zoom{scale:$siz;pos:(0/$siz)*camerazoom, 0;lag:cond(player(1), map(stageIntroTime) = player(1), map(bbtag_stageIntroTime), 0, player(1), map(bbtag_cameraLag));stagebound:1; camerabound:0}
 			}
 		}
 		if player(1), map(stageIntroTime) > (player(1), map(bbtag_IntroDelay) * -1)
 		{
+			# Stage Text
+			if player(1), map(bbtag_stageText) && playerno = 1
+			{
+				if !NumText(135790)
+				{
+					text{text: "Stage Text Test";localcoord:320,240;layerno:player(1), map(bbtag_stageTextLayerno);font:player(1), map(bbtag_stageTextFont);align:player(1), map(bbtag_stageTextAlign);pos:player(1), map(bbtag_stageTextPosX), player(1), map(bbtag_stageTextPosY);scale:player(1), map(bbtag_stageTextScaleX),player(1), map(bbtag_stageTextScaleY);id:135790;textdelay:4;removetime:player(1), map(bbtag_stageIntroTime)+player(1), map(bbtag_IntroDelay);color:player(1), map(bbtag_stageTextColorR),player(1), map(bbtag_stageTextColorG),player(1), map(bbtag_stageTextColorB),0;}
+				}
+				else if NumText(135790) && player(1), map(stageIntroTime) > (player(1), map(bbtag_IntroDelay) * -1)
+				{
+					ModifyText{id:135790;color:player(1), map(bbtag_stageTextColorR),player(1), map(bbtag_stageTextColorG),player(1), map(bbtag_stageTextColorB), cond(player(1), map(stageIntroTime) <= 0, 256-(256*((player(1), map(stageIntroTime)*-1)/player(1), map(bbtag_IntroDelay))),(256 -  (256*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))));}
+				}
+			}
+
 			if player(1), map(stageIntroTime) < 0
 			{
 				let fz = gamewidth/const240p(320/1);
@@ -390,6 +434,12 @@ ignorehitpause if roundstate = 4 && !ishelper && playerno < 3 {
 		let z = gamewidth/const240p(320/player(1), map(bbtag_outroZoom));
 		zoom{scale:$z;lag:0.97; pos:(pos x/$z)*camerazoom, pos y; stagebound:1; camerabound:0;}
 	}
+}
+
+# Outro Delay
+ignorehitpause if roundstate >= 3 && !ishelper && playerno < 9
+{
+	# add code here
 }
 
 }
