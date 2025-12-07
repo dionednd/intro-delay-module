@@ -194,7 +194,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 
 		player(1), map(bbtag_IntroDelay) := 60; #60 frames = 1 second
 
 		# Stage Text (Ignored if stage intro is disabled)
-		player(1), map(bbtag_stageText) := 1; #disabled for now. it doesn't display the stage's name due to engine limitations. once we get support for strings, i'll update this feature
+		player(1), map(bbtag_stageText) := 0; #disabled for now. it doesn't display the stage's name due to engine limitations. once we get support for strings, i'll update this feature
 
 		# Stage Text Params
 		player(1), map(bbtag_stageTextFont) := -1;
@@ -579,3 +579,4 @@ if roundstate = 3 && !isHelper && playerno < 9 && player(1), map(bbtag_outroDela
 	map(bbtag_specialOutro) := 0;
 	player(1), map(bbtag_specialOutroActive) := 0;
 }
+
