@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.3a == #
+# == BBTAG Intro Module v 1.0.4 == #
 #
 #	by dionednd
 #
@@ -61,10 +61,15 @@
 #	- Added Stage Name Text Support (only displays a placeholder text. will be fully implemented once strings are supported in IKEMEN GO.) (you can still use the implementation for your full games. that's the reason why i decided to add it)
 #	- Started Outro Delay implimentation (no functionality yet)
 #
-#	Plans for v 1.0.4
-#	- Outro Delay
-
-#	but before v 1.0.3 i'll be taking a short break cuz i need to study for finals exam.
+#	v 1.0.4
+#	- Made some stage compatibility changes (with camera.startzoom)
+#	- Fixed an issue with Volume Ducking not working whenever special intros are detected
+#	- Added Volume Ducking Interpolation
+#	- Added Outro Delay
+#	- Added Volume Ducking for Outros
+#
+#	Plans for v 1.0.5
+#	- Special Outro Support (Like OHMSBY Style's Astral Finish Winpose)
 
 # == How To Install == #
 #
@@ -80,10 +85,30 @@
 #	This module wasn't made to compliment foobs' extended intro winpose module, so expect bugs when you're using both.
 #	some features were imported into this module due to demand.
 
+# == Functions == #
+
+[Function InterpolateValue(a,b,c) ret]
+
+if $a != $b && $c > 0
+{
+	let ret = cond($a>$b, cond($a-$c < $b, $b,$a-$c), cond($a+$c > $b, $b,$a+$c));
+}
+else if $a = $b || $c < 1 {let ret = $a;}
+
 # == Normal States == #
 
-[StateDef 1900000; type: S; ctrl: 0; velset: 0, 0;]
+[StateDef 1800000; type: S; ctrl: 0; velset: 0, 0;]
 
+if selfAnimExist(0) {
+	changeAnim{value: 0}
+}
+
+if memberNo = player(1), map(bbtag_teamOutroState) && teamSide = player(1), map(bbtag_outroState) && player(1), map(bbtag_specialOutroActive) < 1 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0)
+{
+	changeState{value: cond(!drawgame,cond(losetime,cond(Const(TimeOverState),Const(TimeOverState),170),cond(Const(PreOutroState),Const(PreOutroState),180)),cond(Const(DrawGameState),Const(DrawGameState),175))}
+}
+
+[StateDef 1900000; type: S; ctrl: 0; velset: 0, 0;]
 
 if selfAnimExist(190) {
 	changeAnim{value: 190}
@@ -107,7 +132,7 @@ if playerno < 9 {
 		assertspecial{flag:roundnotskip;}
 	}
 
-ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo = 1
+ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 1
 {
 	# Settings
 	if roundstate <= 0
@@ -133,6 +158,9 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 
 		# Duck Volume
 		player(1), map(bbtag_introMusicDuckVolume) := 75;
+
+		# Duck Volume Interpolation Value
+		player(1), map(bbtag_introMusicInterpolateValue) := 1; # 1 = smoothest. setting this value to 0 or less or a high value will disable interpolation. i suggest using 1-5.
 
 		# Intro Movement 1 = On 0 = Off
 		player(1), map(bbtag_introMovement) := 1;
@@ -166,13 +194,13 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		player(1), map(bbtag_IntroDelay) := 60; #60 frames = 1 second
 
 		# Stage Text (Ignored if stage intro is disabled)
-		player(1), map(bbtag_stageText) := 0; #disabled for now. it doesn't display the stage's name due to engine limitations. once we get support for strings, i'll update this feature
+		player(1), map(bbtag_stageText) := 1; #disabled for now. it doesn't display the stage's name due to engine limitations. once we get support for strings, i'll update this feature
 
 		# Stage Text Params
 		player(1), map(bbtag_stageTextFont) := -1;
 		player(1), map(bbtag_stageTextAlign) := 0;
-		player(1), map(bbtag_stageTextScaleX) := 1;
-		player(1), map(bbtag_stageTextScaleY) := 1;
+		player(1), map(bbtag_stageTextScaleX) := 2;
+		player(1), map(bbtag_stageTextScaleY) := 2;
 		player(1), map(bbtag_stageTextLayerno) := 0;
 		player(1), map(bbtag_stageTextPosX) := 160;
 		player(1), map(bbtag_stageTextPosY) := 120;
@@ -184,8 +212,8 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		player(1), map(bbtag_outroDelay) := 1; # if enabled, outroFocus is ignored.
 
 		# Outro Delay Roll Order	
-		# 1 = Winners First (from p1), Losers Last (from p2)
-		# 2 = Losers First (from p2), Winners Last (from p1)
+		# 1 = Winners First (from p1), Losers Last (from p2), start with p1 team if tie
+		# 2 = Losers First (from p2), Winners Last (from p1), start with p2 team if tie
 		player(1), map(bbtag_outroRollOrder) := 1; # if enabled, outroFocus is ignored.
 		
 		# outro delay has no functionality yet.
@@ -196,10 +224,21 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		# Cam Zoom during Outro >1 = Zoom in <1 = Zoom out
 		player(1), map(bbtag_outroZoom) := 1.2;
 
+		# outro music volume duck
+		player(1), map(bbtag_outroMusicVolumeDuck) := 1;
 
 		# sets the palette of the player
 		RemapPal{source:1,1;dest:1,palno}
 	}
+
+
+
+	if player(1), map(bbtag_introMusicFirstRound) = 2 && !player(1), map(starting_volume) && roundstate = 0
+	{
+		# i needed to add this due to StageVar(music.bgmvolume) not existing. will likely break if you have a module that modifies the bgm volume.
+		player(1), map(starting_volume) := bgmVar(volume);
+	}
+
 	AssertSpecial{flag: NoBarDisplay}
 	# Stage Intro
 	if player(1), map(bbtag_stageIntro) && playerno = 1
@@ -209,7 +248,7 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		{
 			player(1), map(stageIntroBegun) := 1;
 			player(1), map(stageIntroTime) := player(1), map(bbtag_stageIntroTime);
-		}
+		} 
 
 		if player(1), map(stageIntroTime) >= 0
 		{
@@ -217,7 +256,7 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 			AllPalFX{mul: $c, $c, $c;time: 2}
 			if player(1), map(bbtag_stageIntroScrollOrder) = 1
 			{	# (1.0 + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))) # 1.0 is the stage default zoom
-				let siz = gamewidth/const240p(320/(1.0 + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))));
+				let siz = gamewidth/const240p(320/(stageVar(camera.startzoom) + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))));
 				zoom{scale:$siz;pos:(0/$siz)*camerazoom, 0;lag:cond(player(1), map(stageIntroTime) = player(1), map(bbtag_stageIntroTime), 0, player(1), map(bbtag_cameraLag));stagebound:1; camerabound:0}
 			}
 		}
@@ -228,7 +267,7 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 			{
 				if !NumText(135790)
 				{
-					text{text: "Stage Text Test";localcoord:320,240;layerno:player(1), map(bbtag_stageTextLayerno);font:player(1), map(bbtag_stageTextFont);align:player(1), map(bbtag_stageTextAlign);pos:player(1), map(bbtag_stageTextPosX), player(1), map(bbtag_stageTextPosY);scale:player(1), map(bbtag_stageTextScaleX),player(1), map(bbtag_stageTextScaleY);id:135790;textdelay:4;removetime:player(1), map(bbtag_stageIntroTime)+player(1), map(bbtag_IntroDelay);color:player(1), map(bbtag_stageTextColorR),player(1), map(bbtag_stageTextColorG),player(1), map(bbtag_stageTextColorB),0;}
+					text{text: "Third Heights";localcoord:320,240;layerno:player(1), map(bbtag_stageTextLayerno);font:player(1), map(bbtag_stageTextFont);align:player(1), map(bbtag_stageTextAlign);pos:player(1), map(bbtag_stageTextPosX), player(1), map(bbtag_stageTextPosY);scale:player(1), map(bbtag_stageTextScaleX),player(1), map(bbtag_stageTextScaleY);id:135790;textdelay:8;removetime:player(1), map(bbtag_stageIntroTime)+player(1), map(bbtag_IntroDelay);color:player(1), map(bbtag_stageTextColorR),player(1), map(bbtag_stageTextColorG),player(1), map(bbtag_stageTextColorB),0;}
 				}
 				else if NumText(135790) && player(1), map(stageIntroTime) > (player(1), map(bbtag_IntroDelay) * -1)
 				{
@@ -238,7 +277,7 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 
 			if player(1), map(stageIntroTime) < 0
 			{
-				let fz = gamewidth/const240p(320/1);
+				let fz = gamewidth/const240p(320/stageVar(camera.startzoom));
 				zoom{scale:$fz;lag:player(1), map(bbtag_cameraLag); pos:(0/$siz)*camerazoom, 0; stagebound:1; camerabound:0}
 			}
 			player(1), map(stageIntroTime) := player(1), map(stageIntroTime) - 1;
@@ -259,17 +298,26 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		player(1), map(bbtag_introState) := cond(player(1), map(bbtag_rollOrder) = 4,2, 1);
 		player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_rollOrder) = 1,1, cond(teamMode = turns,1,NumPartner + 1));
 	}
+
+	if (player(1), map(bbtag_specialIntroActive) > 0 ||
+	(teamSide = player(1), map(bbtag_introState) && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
+	&& memberNo = player(1), map(bbtag_teamIntroState)))
+	{
+		# Music Volume Ducking
+		if player(1), map(bbtag_introMusicFirstRound) = 2
+		{
+			let v = call InterpolateValue(bgmVar(volume),player(1), map(bbtag_introMusicDuckVolume),player(1), map(bbtag_introMusicInterpolateValue));
+			ModifyBGM{volume:$v}
+		}
+	}
+
 	if player(1), map(bbtag_introState) > 0 && player(1), map(bbtag_introState) < 3 && map(bbtag_specialIntro) != 1 && player(1), map(bbtag_specialIntroActive) < 1
 	{
+
 
 		AssertSpecial{flag: Intro}
 		if teamSide = player(1), map(bbtag_introState) && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
 		{
-			# Music Volume Ducking
-			if player(1), map(bbtag_introMusicFirstRound) = 2
-			{
-				ModifyBGM{volume:player(1), map(bbtag_introMusicDuckVolume)}
-			}
 			if memberNo = player(1), map(bbtag_teamIntroState)
 			{
 				# let them continue their animation and focus the camera on them
@@ -297,20 +345,14 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 					}
 				}
 			}
-			else
-			{
-				if map(bbtag_playerIntroFinished) != 1
-				{
-					ChangeState{value:1900000; continue:0}
-				}
-			}
-		}
-		else
-		{
-			if map(bbtag_playerIntroFinished) != 1
+			else if map(bbtag_playerIntroFinished) != 1
 			{
 				ChangeState{value:1900000; continue:0}
 			}
+		}
+		else if map(bbtag_playerIntroFinished) != 1
+		{
+			ChangeState{value:1900000; continue:0}
 		}
 	}
 
@@ -319,7 +361,8 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		# Music Volume Ducking
 		if player(1), map(bbtag_introMusicFirstRound) = 2
 		{
-			ModifyBGM{volume:100}
+			let v = call InterpolateValue(bgmVar(volume),player(1), map(starting_volume),player(1), map(bbtag_introMusicInterpolateValue));
+			ModifyBGM{volume:$v}
 		}
 
 		if player(1), map(introMovementTime) = 0 && player(1), map(introMovementTimeFinished) = 0 && player(1), map(bbtag_introMovement)
@@ -335,8 +378,8 @@ ignorehitpause if roundState = [-1, 1] && !isHelper && teamSide != 0 && roundNo 
 		}
 		if player(1), map(bbtag_specialIntroActive) < 1 && player(1), map(introMovementTimeFinished) = 0 && roundstate < 2 && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
 		{
-			let z = gamewidth/const240p(320/1);
-			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(((player(1), pos x + player(2), pos x)/$z)*camerazoom) / 2, 0; stagebound:1; camerabound:0;}
+			let z = gamewidth/const240p(320/stageVar(camera.startzoom));
+			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag);stagebound:1;}
 		}
 		if player(1), map(introMovementTime) > 0 && player(1), map(bbtag_introMovement)
 		{
@@ -425,7 +468,7 @@ if roundstate = [0,1] && playerno < 3 {
 }
 
 
-ignorehitpause if roundstate = 4 && !ishelper && playerno < 3 {
+ignorehitpause if roundstate = 4 && !ishelper && playerno < 3 && !player(1), map(bbtag_outroDelay) {
 	# disables PotS characters' own zoom
 	if authorname = "Phantom.of.the.Server" && map(cfg_winzoom) {map(cfg_winzoom):= 0;}
 	
@@ -436,10 +479,103 @@ ignorehitpause if roundstate = 4 && !ishelper && playerno < 3 {
 	}
 }
 
-# Outro Delay
-ignorehitpause if roundstate >= 3 && !ishelper && playerno < 9
-{
-	# add code here
 }
 
+# Outro Delay
+ignorehitpause if roundstate >= 4 && !ishelper && playerno < 9 && teamSide != 0 && player(1), map(bbtag_outroDelay)
+{
+	# disables PotS characters' own zoom
+	if authorname = "Phantom.of.the.Server" && map(cfg_winzoom) {map(cfg_winzoom):= 0;}
+
+	# add code here
+	if !player(1), map(bbtag_outroState) && !player(1), map(bbtag_teamOutroState) & playerno = 1
+	{
+		player(1), map(bbtag_outroState) := cond(!drawgame, cond(player(1), map(bbtag_outroRollOrder) = 1,cond(win,teamSide,enemy,teamSide), cond(lose||losetime,teamSide,enemy,teamSide)), map(bbtag_outroRollOrder));
+		player(1), map(bbtag_teamOutroState) := 1;
+	}
+
+	if (player(1), map(bbtag_specialOutroActive) > 0 ||
+	(teamSide = player(1), map(bbtag_outroState) && memberNo = player(1), map(bbtag_teamOutroState)))
+	{
+		# Music Volume Ducking
+		if player(1), map(bbtag_outroMusicVolumeDuck) = 1
+		{
+			let v = call InterpolateValue(bgmVar(volume),player(1), map(bbtag_introMusicDuckVolume),player(1), map(bbtag_introMusicInterpolateValue));
+			ModifyBGM{volume:$v}
+		}
+	}
+
+	if player(1), map(bbtag_outroState) > 0 && player(1), map(bbtag_outroState) < 3 && map(bbtag_specialOutro) != 1 && player(1), map(bbtag_specialOutroActive) < 1
+	{
+		if teamSide = player(1), map(bbtag_outroState)
+		{
+			if memberNo = player(1), map(bbtag_teamOutroState)
+			{
+				if !map(bbtag_playerOutroFinished) && stateno != 1800000 && stateno = 0{ChangeState{value:1800000; continue:0}}
+
+				# let them continue their animation and focus the camera on them
+				AssertSpecial{flag: roundNotOver}
+				let z = gamewidth/const240p(320/player(1), map(bbtag_outroZoom));
+				zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(pos x/$z)*camerazoom, 0; stagebound:1; camerabound:0;}
+
+				if (animtime = 0 || (AnimElemVar(Time) < 0 && AnimElemTime(AnimElemNo(0)) >= 60) || !alive)
+				{
+					map(bbtag_playerOutroFinished) := 1;
+					player(1), map(bbtag_teamOutroState) := player(1), map(bbtag_teamOutroState) + 1;
+
+					if player(1), map(bbtag_teamOutroState) > cond(teamMode = turns,1,NumPartner + 1)
+					{
+						if !drawgame
+						{
+							if player(1), map(bbtag_outroRollOrder) = 1
+							{
+								if win {player(1), map(bbtag_outroState) := enemy, teamSide;}else{player(1), map(bbtag_outroState) := 3;}
+							}
+							else if player(1), map(bbtag_outroRollOrder) = 2
+							{
+								if lose {player(1), map(bbtag_outroState) := enemy, teamSide;}else{player(1), map(bbtag_outroState) := 3;}
+							}
+						}
+						else if drawgame
+						{
+							player(1), map(bbtag_outroState) := cond(player(1), map(bbtag_outroRollOrder) = 1, cond(player(1), map(bbtag_outroState) = 1, 2, 3),cond(player(1), map(bbtag_outroState) = 2, 1, 3));
+						}
+						player(1), map(bbtag_teamOutroState) := 1;
+					}
+				}
+			}
+			else if map(bbtag_playerOutroFinished) != 1 && alive
+			{
+				ChangeState{value:1800000; continue:0}
+			}
+		}
+		else if map(bbtag_playerOutroFinished) != 1 && alive
+		{
+			ChangeState{value:1800000; continue:0}
+		}
+	}
+	if player(1), map(bbtag_outroState) = 3
+	{
+		# Music Volume Ducking
+		if player(1), map(bbtag_outroMusicVolumeDuck) = 1
+		{
+			let v = call InterpolateValue(bgmVar(volume),player(1), map(starting_volume),player(1), map(bbtag_introMusicInterpolateValue));
+			ModifyBGM{volume:$v}
+		}
+
+		if player(1), map(bbtag_specialOutroActive) < 1
+		{
+			let z = gamewidth/const240p(320/stageVar(camera.startzoom));
+			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag);stagebound:1;}
+		}
+	}
+}
+if roundstate = 3 && !isHelper && playerno < 9 && player(1), map(bbtag_outroDelay)
+{
+	#reset outro delay values
+	player(1), map(bbtag_outroState) := 0;
+	player(1), map(bbtag_teamOutroState) := 0;
+	map(bbtag_playerOutroFinished) := 0;
+	map(bbtag_specialOutro) := 0;
+	player(1), map(bbtag_specialOutroActive) := 0;
 }
