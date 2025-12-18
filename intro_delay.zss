@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.4 == #
+# == BBTAG Intro Module v 1.0.5 == #
 #
 #	by dionednd
 #
@@ -68,8 +68,13 @@
 #	- Added Outro Delay
 #	- Added Volume Ducking for Outros
 #
-#	Plans for v 1.0.5
-#	- Special Outro Support (Like OHMSBY Style's Astral Finish Winpose)
+#	v 1.0.4a
+#	- disabled Stage Text by default. (forgot to)
+#
+#	v 1.0.5
+#	- Fixed Bug where in the first round in tag team mode, partners couldn't be tagged in if the team leader got ko'd.
+#	- Added Stage Intro Scroll Order 2 & 3
+#	- Fixed Weird AI Walk bug?
 
 # == How To Install == #
 #
@@ -84,8 +89,19 @@
 #	This module was tested with foobs' extended intro winpose module and isn't compatible with foobs' module.
 #	This module wasn't made to compliment foobs' extended intro winpose module, so expect bugs when you're using both.
 #	some features were imported into this module due to demand.
+#
+#	This module is incompatible with characters that have configurations in their state 5900.
+#	Trying to fix the issue led me to breaking the module multiple times.
+#	The Zoom SCTRL not working unless a match is properly loaded is still bugging me. idk how to fix it. i set the default stage intro scroll order to 3 due to this.
 
 # == Functions == #
+
+[Function IterateMembers(a,b,c) ret]
+# a = current TeamOutroState
+# b = Team Leader's MemberNo
+# c = NumPartners
+
+# must loop around team members once then skip to next team by returning $c + 1
 
 [Function InterpolateValue(a,b,c) ret]
 
@@ -132,10 +148,10 @@ if playerno < 9 {
 		assertspecial{flag:roundnotskip;}
 	}
 
-ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 1
+ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundno = 1 
 {
 	# Settings
-	if roundstate <= 0
+	if roundstate = 0
 	{
 		# Roll Order
 		# 1 = p1 - right to left / p2 - left to right
@@ -181,8 +197,10 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 
 		player(1), map(bbtag_stageIntro) := 1;
 
 		# Stage Intro Scroll Order (Ignored if stage intro is disabled)
-		# 1 = Zoom out from the center of the stage then start char intros
-		player(1), map(bbtag_stageIntroScrollOrder) := 1;
+		# 1 = Zoom out from the center of the stage then start char intros (buggy, doesn't work at first try due to match not being initialized properly? idk)
+		# 2 = Pan up from the underground then start char intros (edit camera.boundlow to something that's not 0 for this to work)
+		# 3 = Pan down from the sky then start char intros (edit camera.boundhigh if you want the camera to start higher)
+		player(1), map(bbtag_stageIntroScrollOrder) := 3;
 
 		# Stage Intro Duration
 		player(1), map(bbtag_stageIntroTime) := 240; #120 frames = 2 seconds
@@ -227,13 +245,21 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 
 		# outro music volume duck
 		player(1), map(bbtag_outroMusicVolumeDuck) := 1;
 
+
+
 		# sets the palette of the player
 		RemapPal{source:1,1;dest:1,palno}
+		# resets variables
+		if roundsexisted = 0 && matchno = 1
+		{
+			VarRangeSet{value:0;}
+			VarRangeSet{fvalue:0;}
+		}
 	}
 
 
 
-	if player(1), map(bbtag_introMusicFirstRound) = 2 && !player(1), map(starting_volume) && roundstate = 0
+	if player(1), map(bbtag_introMusicFirstRound) = 2 && !player(1), map(starting_volume) && roundstate = 0 && roundNo = 1
 	{
 		# i needed to add this due to StageVar(music.bgmvolume) not existing. will likely break if you have a module that modifies the bgm volume.
 		player(1), map(starting_volume) := bgmVar(volume);
@@ -241,7 +267,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 
 
 	AssertSpecial{flag: NoBarDisplay}
 	# Stage Intro
-	if player(1), map(bbtag_stageIntro) && playerno = 1
+	if player(1), map(bbtag_stageIntro) && playerno = 1 && roundNo = 1
 	{
 		if !player(1), map(bbtag_stageIntroFinished){AssertSpecial{flag: Intro}}
 		if !player(1), map(stageIntroTime) && !player(1), map(bbtag_stageIntroFinished) && !player(1), map(stageIntroBegun)
@@ -254,10 +280,17 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 
 		{
 			let c = (256 -  (256*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime))));
 			AllPalFX{mul: $c, $c, $c;time: 2}
-			if player(1), map(bbtag_stageIntroScrollOrder) = 1
-			{	# (1.0 + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))) # 1.0 is the stage default zoom
-				let siz = gamewidth/const240p(320/(stageVar(camera.startzoom) + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))));
-				zoom{scale:$siz;pos:(0/$siz)*camerazoom, 0;lag:cond(player(1), map(stageIntroTime) = player(1), map(bbtag_stageIntroTime), 0, player(1), map(bbtag_cameraLag));stagebound:1; camerabound:0}
+			switch(player(1), map(bbtag_stageIntroScrollOrder))
+			{
+				case 1:
+					let siz = gamewidth/const240p(320/(stageVar(camera.startzoom) + (player(1), map(bbtag_stageIntroZoom)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))));
+					zoom{scale:$siz;pos:(0/$siz)*camerazoom, 0;lag:cond(player(1), map(stageIntroTime) = player(1), map(bbtag_stageIntroTime), 0, player(1), map(bbtag_cameraLag));stagebound:1; camerabound:0}
+				case 2:
+					let pos = stageVar(camera.boundlow)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime));
+					zoom{scale:1.0;pos:(0/1.0)*camerazoom, $pos;lag:cond(player(1), map(stageIntroTime) = player(1), map(bbtag_stageIntroTime), 0, player(1), map(bbtag_cameraLag));stagebound:1; camerabound:0}
+				case 3:
+					let pos = stageVar(camera.boundhigh)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime));
+					zoom{scale:1.0;pos:(0/1.0)*camerazoom, $pos;lag:cond(player(1), map(stageIntroTime) = player(1), map(bbtag_stageIntroTime), 0, player(1), map(bbtag_cameraLag));stagebound:1; camerabound:0}
 			}
 		}
 		if player(1), map(stageIntroTime) > (player(1), map(bbtag_IntroDelay) * -1)
@@ -293,8 +326,9 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 
 	# DO NOT TOUCH THE NEXT LINES UNLESS YOU DON'T KNOW WHAT YOU'RE DOING.
 	if map(bbtag_specialIntro) != 1 {call specialIntroCheck();}
 
-	if !player(1), map(bbtag_introState) && !player(1), map(bbtag_teamIntroState)
+	if player(1), map(checkSetIntro) != 1 && teamSide = cond(player(1), map(bbtag_rollOrder) = 4,2, 1) && memberNo = cond(player(1), map(bbtag_rollOrder) = 1,1, cond(teamMode = turns,1,NumPartner + 1))
 	{
+		if player(1), map(checkSetIntro) != 1{player(1), map(checkSetIntro) := 1;}
 		player(1), map(bbtag_introState) := cond(player(1), map(bbtag_rollOrder) = 4,2, 1);
 		player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_rollOrder) = 1,1, cond(teamMode = turns,1,NumPartner + 1));
 	}
@@ -313,7 +347,6 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 
 
 	if player(1), map(bbtag_introState) > 0 && player(1), map(bbtag_introState) < 3 && map(bbtag_specialIntro) != 1 && player(1), map(bbtag_specialIntroActive) < 1
 	{
-
 
 		AssertSpecial{flag: Intro}
 		if teamSide = player(1), map(bbtag_introState) && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
@@ -369,12 +402,11 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundNo = 
 		{
 			player(1), map(introMovementTime) := player(1), map(bbtag_introMovementTime);
 		}
-		if !ctrl && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && player(1), map(bbtag_introMovement) && TeamLeader = playerno {ctrlSet{value: 1}}
+		if !ctrl && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && player(1), map(bbtag_introMovement) {ctrlSet{value: 1}}
+		if teamMode = Tag{map(_iksys_tagIntroFlag) := 1;}
 		if TeamLeader != playerno && teamMode = Tag
 		{
-			# if teamMode is tag and char is not the teamleader, take away control and take them out the screen
-			if ctrl {ctrlSet{value: 0}}
-			if stateno = 0 {tagOut{stateno: const(StateTagLeavingScreen)}}
+			if !standby {tagOut{stateno: const(StateTagLeavingScreen)}}
 		}
 		if player(1), map(bbtag_specialIntroActive) < 1 && player(1), map(introMovementTimeFinished) = 0 && roundstate < 2 && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
 		{
@@ -449,7 +481,22 @@ if roundstate = [-1, 2] && player(1), map(bbtag_introState) = 3 && !isHelper && 
 		if map(ailevel_) {
 			let x = abs(p2bodydist x);
 			# get close
-			if $x >= const240p(70) {AssertInput{flag:F;}} # imported ai code from foobs' extended intro winpose module.
+			if $x >= const240p(70) && map(walking_) < 2
+			{
+				AssertInput{flag:F;}
+				map(walking) := 1;
+			} # imported ai code from foobs' extended intro winpose module.
+			else
+			{
+				if $x < const240p(70)
+				{
+					map(walking) := 2;
+				}
+				else if $x >= const240p(70) && map(walking_) = 2 && time % 60 = 0
+				{
+					map(walking) := 0;
+				}
+			}
 		}
 		player(1), map(bbtag_introMovementActive) := 1;
 	}
@@ -544,12 +591,12 @@ ignorehitpause if roundstate >= 4 && !ishelper && playerno < 9 && teamSide != 0 
 					}
 				}
 			}
-			else if map(bbtag_playerOutroFinished) != 1 && alive
+			else if map(bbtag_playerOutroFinished) != 1 && alive && map(bbtag_specialOutro) != 1
 			{
 				ChangeState{value:1800000; continue:0}
 			}
 		}
-		else if map(bbtag_playerOutroFinished) != 1 && alive
+		else if map(bbtag_playerOutroFinished) != 1 && alive && map(bbtag_specialOutro) != 1
 		{
 			ChangeState{value:1800000; continue:0}
 		}
@@ -569,14 +616,35 @@ ignorehitpause if roundstate >= 4 && !ishelper && playerno < 9 && teamSide != 0 
 			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag);stagebound:1;}
 		}
 	}
+	if map(bbtag_specialOutro) = 1 && (animtime = 0 || (AnimElemVar(Time) < 0 && AnimElemTime(AnimElemNo(0)) >= 60)) && player(1), map(bbtag_specialOutroActive) > 1 && stateno != 0
+	{
+		map(bbtag_specialOutro) := 0;
+		player(1), map(bbtag_specialOutroActive) := player(1), map(bbtag_specialOutroActive) - 1;
+	}
 }
 if roundstate = 3 && !isHelper && playerno < 9 && player(1), map(bbtag_outroDelay)
 {
+	#reset intro delay values
+	if player(1), map(checkSetIntro) = 1{player(1), map(checkSetIntro) := 0;}
+	map(bbtag_playerIntroFinished) := 0;
+	map(bbtag_specialIntro) := 0;
+	player(1), map(bbtag_specialIntroActive) := 0;
+	player(1), map(introMovementTimeFinished) := 0;
+	player(1), map(bbtag_stageIntroFinished) := 1;
+	if teamSide = cond(player(1), map(bbtag_rollOrder) = 4,2, 1) && memberNo = cond(player(1), map(bbtag_rollOrder) = 1,1, cond(teamMode = turns,1,NumPartner + 1))
+	{
+		player(1), map(bbtag_introState) := cond(player(1), map(bbtag_rollOrder) = 4,2, 1);
+		player(1), map(bbtag_teamIntroState) := cond(player(1), map(bbtag_rollOrder) = 1,1, cond(teamMode = turns,1,NumPartner + 1));
+	}
+	# intros still don't work during round 2 (maybe because assertspecial intro doesn't work if roundno > 1?)
+	# will look into this later on.
+	
+
 	#reset outro delay values
+	#call specialOutroCheck();
 	player(1), map(bbtag_outroState) := 0;
 	player(1), map(bbtag_teamOutroState) := 0;
 	map(bbtag_playerOutroFinished) := 0;
 	map(bbtag_specialOutro) := 0;
 	player(1), map(bbtag_specialOutroActive) := 0;
 }
-
