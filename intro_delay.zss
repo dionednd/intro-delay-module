@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.5 == #
+# == BBTAG Intro Module v 1.0.5a == #
 #
 #	by dionednd
 #
@@ -75,6 +75,9 @@
 #	- Fixed Bug where in the first round in tag team mode, partners couldn't be tagged in if the team leader got ko'd.
 #	- Added Stage Intro Scroll Order 2 & 3
 #	- Fixed Weird AI Walk bug?
+#
+#	v 1.0.5a
+#	- Moved the module to -3 to make the module compatible with dynamic shadows module.
 
 # == How To Install == #
 #
@@ -141,7 +144,8 @@ if memberNo = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(
 
 # == Global States == #
 
-[StateDef -4]
+[StateDef -3]
+ignorehitpause{
 if playerno < 9 {
 	if (player(1), map(bbtag_introMovement) || player(1), map(bbtag_introSkipDisabled) || player(1), map(bbtag_stageIntro)) && !isHelper && roundstate < 2
 	{
@@ -647,4 +651,5 @@ if roundstate = 3 && !isHelper && playerno < 9 && player(1), map(bbtag_outroDela
 	map(bbtag_playerOutroFinished) := 0;
 	map(bbtag_specialOutro) := 0;
 	player(1), map(bbtag_specialOutroActive) := 0;
+}
 }
