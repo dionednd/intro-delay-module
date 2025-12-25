@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.5a == #
+# == BBTAG Intro Module v 1.0.5b == #
 #
 #	by dionednd
 #
@@ -78,6 +78,9 @@
 #
 #	v 1.0.5a
 #	- Moved the module to -3 to make the module compatible with dynamic shadows module.
+#
+#	v 1.0.5b
+#	- Made intro movement work on all rounds.
 
 # == How To Install == #
 #
@@ -152,10 +155,10 @@ if playerno < 9 {
 		assertspecial{flag:roundnotskip;}
 	}
 
-ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundno = 1 
+ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 {
 	# Settings
-	if roundstate = 0
+	if roundstate = 0 && roundno = 1
 	{
 		# Roll Order
 		# 1 = p1 - right to left / p2 - left to right
@@ -320,17 +323,17 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundno = 
 			player(1), map(stageIntroTime) := player(1), map(stageIntroTime) - 1;
 		}
 
-		if player(1), map(stageIntroTime) = (player(1), map(bbtag_IntroDelay) * -1) && !player(1), map(bbtag_stageIntroFinished)
+		if player(1), map(stageIntroTime) = (player(1), map(bbtag_IntroDelay) * -1) && !player(1), map(bbtag_stageIntroFinished) 
 		{
 			player(1), map(bbtag_stageIntroFinished) := 1;
 		}
 
 	}
 
-	# DO NOT TOUCH THE NEXT LINES UNLESS YOU DON'T KNOW WHAT YOU'RE DOING.
-	if map(bbtag_specialIntro) != 1 {call specialIntroCheck();}
+	# DO NOT TOUCH THE NEXT LINES UNLESS YOU KNOW WHAT YOU'RE DOING.
+	if map(bbtag_specialIntro) != 1 && roundno = 1 {call specialIntroCheck();}
 
-	if player(1), map(checkSetIntro) != 1 && teamSide = cond(player(1), map(bbtag_rollOrder) = 4,2, 1) && memberNo = cond(player(1), map(bbtag_rollOrder) = 1,1, cond(teamMode = turns,1,NumPartner + 1))
+	if player(1), map(checkSetIntro) != 1 && teamSide = cond(player(1), map(bbtag_rollOrder) = 4,2, 1) && memberNo = cond(player(1), map(bbtag_rollOrder) = 1,1, cond(teamMode = turns,1,NumPartner + 1)) && roundno = 1
 	{
 		if player(1), map(checkSetIntro) != 1{player(1), map(checkSetIntro) := 1;}
 		player(1), map(bbtag_introState) := cond(player(1), map(bbtag_rollOrder) = 4,2, 1);
@@ -339,7 +342,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundno = 
 
 	if (player(1), map(bbtag_specialIntroActive) > 0 ||
 	(teamSide = player(1), map(bbtag_introState) && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
-	&& memberNo = player(1), map(bbtag_teamIntroState)))
+	&& memberNo = player(1), map(bbtag_teamIntroState))) && roundno = 1
 	{
 		# Music Volume Ducking
 		if player(1), map(bbtag_introMusicFirstRound) = 2
@@ -349,7 +352,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundno = 
 		}
 	}
 
-	if player(1), map(bbtag_introState) > 0 && player(1), map(bbtag_introState) < 3 && map(bbtag_specialIntro) != 1 && player(1), map(bbtag_specialIntroActive) < 1
+	if player(1), map(bbtag_introState) > 0 && player(1), map(bbtag_introState) < 3 && map(bbtag_specialIntro) != 1 && player(1), map(bbtag_specialIntroActive) < 1 && roundno = 1
 	{
 
 		AssertSpecial{flag: Intro}
@@ -387,16 +390,16 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundno = 
 				ChangeState{value:1900000; continue:0}
 			}
 		}
-		else if map(bbtag_playerIntroFinished) != 1
+		else if map(bbtag_playerIntroFinished) != 1 && roundno = 1
 		{
 			ChangeState{value:1900000; continue:0}
 		}
 	}
 
-	if player(1), map(bbtag_introState) = 3
+	if player(1), map(bbtag_introState) = 3 || roundno > 1 && roundstate = 1
 	{
 		# Music Volume Ducking
-		if player(1), map(bbtag_introMusicFirstRound) = 2
+		if player(1), map(bbtag_introMusicFirstRound) = 2 && roundno = 1
 		{
 			let v = call InterpolateValue(bgmVar(volume),player(1), map(starting_volume),player(1), map(bbtag_introMusicInterpolateValue));
 			ModifyBGM{volume:$v}
@@ -406,13 +409,17 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundno = 
 		{
 			player(1), map(introMovementTime) := player(1), map(bbtag_introMovementTime);
 		}
-		if !ctrl && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && player(1), map(bbtag_introMovement) {ctrlSet{value: 1}}
-		if teamMode = Tag{map(_iksys_tagIntroFlag) := 1;}
-		if TeamLeader != playerno && teamMode = Tag
+		if !ctrl && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && player(1), map(bbtag_introMovement)
 		{
-			if !standby {tagOut{stateno: const(StateTagLeavingScreen)}}
+			ctrlSet{value: 1}
+			if teamMode = Tag{map(_iksys_tagIntroFlag) := 1;}
+			if TeamLeader != playerno && teamMode = Tag
+			{
+				if !standby {tagOut{stateno: const(StateTagLeavingScreen)}}
+			}
 		}
-		if player(1), map(bbtag_specialIntroActive) < 1 && player(1), map(introMovementTimeFinished) = 0 && roundstate < 2 && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
+		
+		if player(1), map(bbtag_specialIntroActive) < 1 && player(1), map(introMovementTimeFinished) = 0 && roundstate < 2 && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro)) && roundno = 1
 		{
 			let z = gamewidth/const240p(320/stageVar(camera.startzoom));
 			zoom{scale:$z;lag:player(1), map(bbtag_cameraLag);stagebound:1;}
@@ -427,14 +434,14 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0 && roundno = 
 		}
 	}
 
-	if player(1), map(bbtag_specialIntroActive) > 0 && stateno != 19000000 && map(bbtag_specialIntro) != 1
+	if player(1), map(bbtag_specialIntroActive) > 0 && stateno != 19000000 && map(bbtag_specialIntro) != 1 && roundno = 1
 	{
 		ChangeState{value:1900000; continue:0}
 	}
 
 }
 
-if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && memberNo = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(bbtag_introState) && !isHelper && player(1), map(bbtag_specialIntroActive) = 0
+if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && memberNo = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(bbtag_introState) && !isHelper && player(1), map(bbtag_specialIntroActive) = 0 && roundno = 1
 {
 	map(bbtag_playerIntroFinished) := 1;
 	if player(1), map(bbtag_rollOrder) = 1 {player(1), map(bbtag_teamIntroState) := player(1), map(bbtag_teamIntroState) + 1;}
@@ -456,12 +463,12 @@ if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && memberNo = player(1), 
 }
 
 
-if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && player(1), map(bbtag_specialIntroActive) > 0 && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0)
+if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && player(1), map(bbtag_specialIntroActive) > 0 && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && roundno = 1
 {
 	player(1), map(bbtag_specialIntroActive) := player(1), map(bbtag_specialIntroActive) - 1;
 }
 
-if roundstate = [-1, 2] && player(1), map(bbtag_introState) = 3 && !isHelper && teamSide = [1,2]
+if roundstate = [-1, 2] && (player(1), map(bbtag_introState) = 3 || (roundno > 1 && roundstate = 1)) && !isHelper && teamSide = [1,2]
 {
 
 	if player(1), map(bbtag_introMovement) && roundstate < 2
@@ -626,7 +633,7 @@ ignorehitpause if roundstate >= 4 && !ishelper && playerno < 9 && teamSide != 0 
 		player(1), map(bbtag_specialOutroActive) := player(1), map(bbtag_specialOutroActive) - 1;
 	}
 }
-if roundstate = 3 && !isHelper && playerno < 9 && player(1), map(bbtag_outroDelay)
+if roundstate = 3 && !isHelper && playerno < 9 
 {
 	#reset intro delay values
 	if player(1), map(checkSetIntro) = 1{player(1), map(checkSetIntro) := 0;}
