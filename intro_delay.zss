@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.5b == #
+# == BBTAG Intro Module v 1.0.5c == #
 #
 #	by dionednd
 #
@@ -80,7 +80,11 @@
 #	- Moved the module to -3 to make the module compatible with dynamic shadows module.
 #
 #	v 1.0.5b
-#	- Made intro movement work on all rounds.
+#	- Gave functionality for intro movement to work on all rounds.
+#
+#	v 1.0.5c
+#	- Improved Interpolation code for volume ducking. also made it so that the volume wouldn't raise if the starting volume was 0.
+#	- removed time condition during stateno = 0 to try to fix a bug.
 
 # == How To Install == #
 #
@@ -109,13 +113,35 @@
 
 # must loop around team members once then skip to next team by returning $c + 1
 
-[Function InterpolateValue(a,b,c) ret]
+[Function InterpolateValue(min, max, tick, ticks, mode) ret]
 
-if $a != $b && $c > 0
+# min - minimum value.
+# max - maximum value.
+# tick - current tick.
+# ticks - duration of the interpolation.
+# mode - mode of interpolation.
+
+let t = float($tick) / float($ticks);
+
+let t = cond($t > 1.0, 1.0, cond($t < 0.0, 0.0, $t));
+
+if $mode = 1 { let easedT = $t ^ 3; } # ease in
+else if $mode = 2 { let easedT = (1.0 - $t) ^ 3; } # ease out
+else if $mode = 3 { let easedT =  cond($t < 0.5, 4.0 * ($t^3), 1.0 - ((-2.0 * $t + 2.0) ^ 3) / 2.0); } # ease in & out
+else { let easedT = $t; } # linear
+
+if $min < $max
 {
-	let ret = cond($a>$b, cond($a-$c < $b, $b,$a-$c), cond($a+$c > $b, $b,$a+$c));
+	let ret = $min + ($max - $min) * $easedT;
 }
-else if $a = $b || $c < 1 {let ret = $a;}
+else if $min > $max
+{
+	let ret = $min - ($max - $min) * $easedT;
+}
+else
+{
+	let ret = $max;
+}
 
 # == Normal States == #
 
@@ -183,7 +209,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		player(1), map(bbtag_introMusicDuckVolume) := 75;
 
 		# Duck Volume Interpolation Value
-		player(1), map(bbtag_introMusicInterpolateValue) := 1; # 1 = smoothest. setting this value to 0 or less or a high value will disable interpolation. i suggest using 1-5.
+		player(1), map(bbtag_introMusicInterpolateMode) := 3; # Interpolation Mode. ( 0 = off, 1 = ease in, 2 = ease out, 3 = ease in & out)
 
 		# Intro Movement 1 = On 0 = Off
 		player(1), map(bbtag_introMovement) := 1;
@@ -262,6 +288,18 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 			VarRangeSet{value:0;}
 			VarRangeSet{fvalue:0;}
 		}
+	}
+
+	if roundstate = 0
+	&& (player(1), map(interp_tick1) > 60
+	|| player(1), map(interp_tick2) > 60
+	|| player(1), map(interp_tick3) > 60
+	|| player(1), map(interp_tick4) > 60)
+	{
+		player(1), map(interp_tick1) := 0;
+		player(1), map(interp_tick2) := 0;
+		player(1), map(interp_tick3) := 0;
+		player(1), map(interp_tick4) := 0;
 	}
 
 
@@ -345,9 +383,10 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 	&& memberNo = player(1), map(bbtag_teamIntroState))) && roundno = 1
 	{
 		# Music Volume Ducking
-		if player(1), map(bbtag_introMusicFirstRound) = 2
+		if player(1), map(bbtag_introMusicFirstRound) = 2 && player(1), map(interp_tick1) <= 60
 		{
-			let v = call InterpolateValue(bgmVar(volume),player(1), map(bbtag_introMusicDuckVolume),player(1), map(bbtag_introMusicInterpolateValue));
+			let v = call InterpolateValue(player(1), map(starting_volume), min(max(player(1), map(starting_volume), 0), player(1), map(bbtag_introMusicDuckVolume)), player(1), map(interp_tick1), 60, player(1), map(bbtag_introMusicInterpolateMode));
+			player(1), map(interp_tick1) := player(1), map(interp_tick1) + 1;
 			ModifyBGM{volume:$v}
 		}
 	}
@@ -364,7 +403,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 				let z = gamewidth/const240p(320/player(1), map(bbtag_cameraZoom));
 				zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(pos x/$z)*camerazoom, 0; stagebound:1; camerabound:0;}
 
-				if stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0)
+				if stateno = 0
 				{
 					map(bbtag_playerIntroFinished) := 1;
 					if player(1), map(bbtag_rollOrder) = 1 {player(1), map(bbtag_teamIntroState) := player(1), map(bbtag_teamIntroState) + 1;}
@@ -398,10 +437,12 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 
 	if player(1), map(bbtag_introState) = 3 || roundno > 1 && roundstate = 1
 	{
+
 		# Music Volume Ducking
-		if player(1), map(bbtag_introMusicFirstRound) = 2 && roundno = 1
+		if player(1), map(bbtag_introMusicFirstRound) = 2 && roundno = 1 && player(1), map(interp_tick2) <= 60
 		{
-			let v = call InterpolateValue(bgmVar(volume),player(1), map(starting_volume),player(1), map(bbtag_introMusicInterpolateValue));
+			let v = call InterpolateValue(max(max(player(1), map(starting_volume), 0), player(1), map(bbtag_introMusicDuckVolume)), player(1), map(starting_volume), player(1), map(interp_tick2), 60, player(1), map(bbtag_introMusicInterpolateMode));
+			player(1), map(interp_tick2) := player(1), map(interp_tick2) + 1;
 			ModifyBGM{volume:$v}
 		}
 
@@ -409,7 +450,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		{
 			player(1), map(introMovementTime) := player(1), map(bbtag_introMovementTime);
 		}
-		if !ctrl && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && player(1), map(bbtag_introMovement)
+		if !ctrl && stateno = 0 && player(1), map(bbtag_introMovement)
 		{
 			ctrlSet{value: 1}
 			if teamMode = Tag{map(_iksys_tagIntroFlag) := 1;}
@@ -463,7 +504,7 @@ if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && memberNo = player(1), 
 }
 
 
-if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && player(1), map(bbtag_specialIntroActive) > 0 && stateno = 0 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0) && roundno = 1
+if roundstate = [-1, 1] && map(bbtag_specialIntro) = 1 && player(1), map(bbtag_specialIntroActive) > 0 && stateno = 0 && roundno = 1
 {
 	player(1), map(bbtag_specialIntroActive) := player(1), map(bbtag_specialIntroActive) - 1;
 }
@@ -555,10 +596,12 @@ ignorehitpause if roundstate >= 4 && !ishelper && playerno < 9 && teamSide != 0 
 	if (player(1), map(bbtag_specialOutroActive) > 0 ||
 	(teamSide = player(1), map(bbtag_outroState) && memberNo = player(1), map(bbtag_teamOutroState)))
 	{
+
 		# Music Volume Ducking
-		if player(1), map(bbtag_outroMusicVolumeDuck) = 1
+		if player(1), map(bbtag_outroMusicVolumeDuck) = 1 && player(1), map(interp_tick3) <= 60
 		{
-			let v = call InterpolateValue(bgmVar(volume),player(1), map(bbtag_introMusicDuckVolume),player(1), map(bbtag_introMusicInterpolateValue));
+			let v = call InterpolateValue(player(1), map(starting_volume), min(max(player(1), map(starting_volume), 0), player(1), map(bbtag_introMusicDuckVolume)), player(1), map(interp_tick3), 60, player(1), map(bbtag_introMusicInterpolateMode));
+			player(1), map(interp_tick3) := player(1), map(interp_tick3) + 1;
 			ModifyBGM{volume:$v}
 		}
 	}
@@ -614,10 +657,12 @@ ignorehitpause if roundstate >= 4 && !ishelper && playerno < 9 && teamSide != 0 
 	}
 	if player(1), map(bbtag_outroState) = 3
 	{
+
 		# Music Volume Ducking
-		if player(1), map(bbtag_outroMusicVolumeDuck) = 1
+		if player(1), map(bbtag_outroMusicVolumeDuck) = 1 && player(1), map(interp_tick4) <= 60
 		{
-			let v = call InterpolateValue(bgmVar(volume),player(1), map(starting_volume),player(1), map(bbtag_introMusicInterpolateValue));
+			let v = call InterpolateValue(max(max(player(1), map(starting_volume), 0), player(1), map(bbtag_introMusicDuckVolume)), player(1), map(starting_volume), player(1), map(interp_tick4), 60, player(1), map(bbtag_introMusicInterpolateMode));
+			player(1), map(interp_tick4) := player(1), map(interp_tick4) + 1;
 			ModifyBGM{volume:$v}
 		}
 
