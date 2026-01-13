@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.6 == #
+# == BBTAG Intro Module v 1.0.6a == #
 #
 #	by dionednd
 #
@@ -89,6 +89,9 @@
 #	v1.0.6
 #	- Added Lose Pose if loser hasn't lost the match yet.
 #	- replaced camera.startzoom with 1.0 (yeah, i didn't realize that the zoom sctrl would multiply the startzoom. since zoom just multiplies camerazoom instead of modifying camerazoom.)
+#
+#	v1.0.6a
+#	- Fixed issue with state 5900.
 
 # == How To Install == #
 #
@@ -158,7 +161,6 @@ let ret = cond($cond && selfAnimExist($base + anim % 10),
 if selfAnimExist(0) && alive {
 	changeAnim{value: 0}
 }
-
 if !alive {
 	if memberNo = player(1), map(bbtag_teamOutroState) && teamSide = player(1), map(bbtag_outroState) && player(1), map(bbtag_specialOutroActive) < 1 && !p2, decisiveRound
 	{
@@ -215,6 +217,7 @@ if memberNo = player(1), map(bbtag_teamOutroState) && teamSide = player(1), map(
 	changeState{value: cond(!drawgame,cond(losetime,cond(Const(TimeOverState),Const(TimeOverState),170),cond(Const(PreOutroState),Const(PreOutroState),180)),cond(Const(DrawGameState),Const(DrawGameState),175))}
 }
 
+
 [StateDef 1900000; type: S; ctrl: 0; velset: 0, 0;]
 
 if selfAnimExist(190) {
@@ -227,7 +230,7 @@ else if selfAnimExist(191) {
 if memberNo = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(bbtag_introState) && player(1), map(bbtag_specialIntroActive) < 1 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0)
 && (player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro))
 {
-	changeState{value: cond(Const(PreIntroState),Const(PreIntroState),190)}
+	changeState{value: cond(Const(PreIntroState),Const(PreIntroState),5900)} #jump to 5900 instead
 }
 
 # == Global States == #
@@ -534,8 +537,9 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 			if player(1), map(introMovementTime) = 0 && player(1), map(introMovementTimeFinished) = 0 {player(1), map(introMovementTimeFinished) := 1;}
 		}
 	}
+	else if player(1), map(bbtag_introState) = [1,2] {ctrlset{value:0}}
 
-	if player(1), map(bbtag_specialIntroActive) > 0 && stateno != 19000000 && map(bbtag_specialIntro) != 1 && roundno = 1
+	if player(1), map(bbtag_specialIntroActive) > 0 && stateno != 1900000 && map(bbtag_specialIntro) != 1 && roundno = 1
 	{
 		ChangeState{value:1900000; continue:0}
 	}
@@ -641,7 +645,7 @@ ignorehitpause if roundstate = 4 && !ishelper && playerno < 3 && !player(1), map
 }
 
 # Outro Delay
-ignorehitpause if roundstate >= 4 && !ishelper && playerno < 9 && teamSide != 0 && player(1), map(bbtag_outroDelay)
+ignorehitpause if roundstate = 4 && !ishelper && playerno < 9 && teamSide != 0 && player(1), map(bbtag_outroDelay)
 {
 	# disables PotS characters' own zoom
 	if authorname = "Phantom.of.the.Server" && map(cfg_winzoom) {map(cfg_winzoom):= 0;}
