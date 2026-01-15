@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.6a == #
+# == BBTAG Intro Module v 1.0.6b == #
 #
 #	by dionednd
 #
@@ -92,6 +92,13 @@
 #
 #	v1.0.6a
 #	- Fixed issue with state 5900.
+#
+#	v1.0.6b
+#	- Fixed Volume Interpolation
+#	- Changed Duck Volume to be a float. 1.0 means 100% of the starting volume, 0.5 means 50%. this was done for the volume ducking to be more compatible with the currently playing music instead of hardcoding a volume.
+#	- Fixed bugs with outro
+#	- Fixed Stand up animation on lose pose
+#	- Changed losepose into continue screen animation, so the character doesn't talk about losing time or whatever.
 
 # == How To Install == #
 #
@@ -113,42 +120,33 @@
 
 # == Functions == #
 
-[Function IterateMembers(a,b,c) ret]
-# a = current TeamOutroState
-# b = Team Leader's MemberNo
-# c = NumPartners
-
-# must loop around team members once then skip to next team by returning $c + 1
-
 [Function InterpolateValue(min, max, tick, ticks, mode) ret]
 
-# min - minimum value.
-# max - maximum value.
-# tick - current tick.
-# ticks - duration of the interpolation.
-# mode - mode of interpolation.
-
 let t = float($tick) / float($ticks);
-
 let t = cond($t > 1.0, 1.0, cond($t < 0.0, 0.0, $t));
 
-if $mode = 1 { let easedT = $t ^ 3; } # ease in
-else if $mode = 2 { let easedT = (1.0 - $t) ^ 3; } # ease out
-else if $mode = 3 { let easedT =  cond($t < 0.5, 4.0 * ($t^3), 1.0 - ((-2.0 * $t + 2.0) ^ 3) / 2.0); } # ease in & out
-else { let easedT = $t; } # linear
-
-if $min < $max
+if $mode = 1
 {
-	let ret = $min + ($max - $min) * $easedT;
+    let easedT = $t ^ 3;                      # ease in
 }
-else if $min > $max
+else if $mode = 2
 {
-	let ret = $min - ($max - $min) * $easedT;
+    let easedT = 1.0 - (1.0 - $t) ^ 3;        # ease out
+}
+else if $mode = 3
+{
+    let easedT = cond(
+        $t < 0.5,
+        1.0 - (1.0 - $t) ^ 3,
+        $t ^ 3
+    );
 }
 else
 {
-	let ret = $max;
+    let easedT = $t;                          # linear
 }
+
+let ret = $min + ($max - $min) * cond($easedT > 1.0, 1.0, cond($easedT < 0.0, 0.0, $easedT));
 
 [Function IkSys_SelfAnimExistAddMod10(cond, base) ret]
 let ret = cond($cond && selfAnimExist($base + anim % 10),
@@ -164,17 +162,15 @@ if selfAnimExist(0) && alive {
 if !alive {
 	if memberNo = player(1), map(bbtag_teamOutroState) && teamSide = player(1), map(bbtag_outroState) && player(1), map(bbtag_specialOutroActive) < 1 && !p2, decisiveRound
 	{
-		let z = gamewidth/const240p(320/player(1), map(bbtag_outroZoom));
-		zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(pos x/$z)*camerazoom, 0; stagebound:1; camerabound:0;}
-		if (anim = [5140, 5159] || anim = [5110, 5119]) && anim != 12
+		if (anim = [5140, 5159] || anim = [5110, 5119]) && anim != 12 && selfAnimExist(12)
 		{
 			changeAnim{value:12}
 		}
-		else if anim = 12 && animtime = 0 && anim != 0
+		else if anim = 12 && anim != 0 && selfAnimExist(0) && animtime = 0
 		{
 			changeAnim{value:0}
 		}
-		else if anim = 0 && stateno != cond(Const(DrawGameState),Const(DrawGameState),175)
+		else if anim = 0
 		{
 			map(bbtag_playerOutroFinished) := 1;
 			player(1), map(bbtag_teamOutroState) := player(1), map(bbtag_teamOutroState) + 1;
@@ -197,7 +193,7 @@ if !alive {
 				}
 					player(1), map(bbtag_teamOutroState) := 1;
 			}
-			selfState{value:cond(Const(DrawGameState),Const(DrawGameState),175)}
+			changeState{value:cond(Const(LosePoseState),Const(LosePoseState),5500)}
 		}
 	}
 	else
@@ -268,7 +264,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		player(1), map(bbtag_introMusicFirstRound) := 2;
 
 		# Duck Volume
-		player(1), map(bbtag_introMusicDuckVolume) := 75;
+		player(1), map(bbtag_introMusicDuckVolume) := 0.75;
 
 		# Duck Volume Interpolation Value
 		player(1), map(bbtag_introMusicInterpolateMode) := 3; # Interpolation Mode. ( 0 = off, 1 = ease in, 2 = ease out, 3 = ease in & out)
@@ -448,7 +444,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		# Music Volume Ducking
 		if player(1), map(bbtag_introMusicFirstRound) = 2 && player(1), map(interp_tick1) <= 60
 		{
-			let v = call InterpolateValue(player(1), map(starting_volume), min(max(player(1), map(starting_volume), 0), player(1), map(bbtag_introMusicDuckVolume)), player(1), map(interp_tick1), 60, player(1), map(bbtag_introMusicInterpolateMode));
+			let v = call InterpolateValue(player(1), map(starting_volume), min(max(player(1), map(starting_volume), 0), (player(1), map(starting_volume)*player(1), map(bbtag_introMusicDuckVolume))), player(1), map(interp_tick1), 60, player(1), map(bbtag_introMusicInterpolateMode));
 			player(1), map(interp_tick1) := player(1), map(interp_tick1) + 1;
 			ModifyBGM{volume:$v}
 		}
@@ -504,7 +500,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		# Music Volume Ducking
 		if player(1), map(bbtag_introMusicFirstRound) = 2 && roundno = 1 && player(1), map(interp_tick2) <= 60
 		{
-			let v = call InterpolateValue(max(max(player(1), map(starting_volume), 0), player(1), map(bbtag_introMusicDuckVolume)), player(1), map(starting_volume), player(1), map(interp_tick2), 60, player(1), map(bbtag_introMusicInterpolateMode));
+			let v = call InterpolateValue(max(max(player(1), map(starting_volume), 0), (player(1), map(starting_volume)*player(1), map(bbtag_introMusicDuckVolume))), player(1), map(starting_volume), player(1), map(interp_tick2), 60, player(1), map(bbtag_introMusicInterpolateMode));
 			player(1), map(interp_tick2) := player(1), map(interp_tick2) + 1;
 			ModifyBGM{volume:$v}
 		}
@@ -645,7 +641,13 @@ ignorehitpause if roundstate = 4 && !ishelper && playerno < 3 && !player(1), map
 }
 
 # Outro Delay
-ignorehitpause if roundstate = 4 && !ishelper && playerno < 9 && teamSide != 0 && player(1), map(bbtag_outroDelay)
+
+ignorehitpause if roundstate = 3 && !ishelper && playerno <9 && teamside != 0 && player(1), map(bbtag_outroDelay) && prevstateno != 1800000 && stateno != 1800000 && alive && stateno = [170,190]
+{
+	ChangeState{value:0; continue:0} #prevents draw game animation from playing early
+}
+
+ignorehitpause if roundstate >= 4 && !ishelper && playerno < 9 && teamSide != 0 && player(1), map(bbtag_outroDelay)
 {
 	# disables PotS characters' own zoom
 	if authorname = "Phantom.of.the.Server" && map(cfg_winzoom) {map(cfg_winzoom):= 0;}
@@ -664,7 +666,7 @@ ignorehitpause if roundstate = 4 && !ishelper && playerno < 9 && teamSide != 0 &
 		# Music Volume Ducking
 		if player(1), map(bbtag_outroMusicVolumeDuck) = 1 && player(1), map(interp_tick3) <= 60
 		{
-			let v = call InterpolateValue(player(1), map(starting_volume), min(max(player(1), map(starting_volume), 0), player(1), map(bbtag_introMusicDuckVolume)), player(1), map(interp_tick3), 60, player(1), map(bbtag_introMusicInterpolateMode));
+			let v = call InterpolateValue(player(1), map(starting_volume), min(max(player(1), map(starting_volume), 0), (player(1), map(starting_volume)*player(1), map(bbtag_introMusicDuckVolume))), player(1), map(interp_tick3), 60, player(1), map(bbtag_introMusicInterpolateMode));
 			player(1), map(interp_tick3) := player(1), map(interp_tick3) + 1;
 			ModifyBGM{volume:$v}
 		}
@@ -676,21 +678,13 @@ ignorehitpause if roundstate = 4 && !ishelper && playerno < 9 && teamSide != 0 &
 		{
 			if memberNo = player(1), map(bbtag_teamOutroState)
 			{
-				if !map(bbtag_playerOutroFinished) && stateno != 1800000 && !map(_temp)
-				{
-					map(_temp) := 1;
-					ChangeState{value:1800000; continue:0}
-				}
 
 				# let them continue their animation and focus the camera on them
 				AssertSpecial{flag: roundNotOver}
-				if (alive || (!alive && p2,decisiveRound)) || (!alive && !p2,decisiveRound && stateno = cond(Const(DrawGameState),Const(DrawGameState),175))
-				{
-					let z = gamewidth/const240p(320/player(1), map(bbtag_outroZoom));
-					zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(pos x/$z)*camerazoom, 0; stagebound:1; camerabound:0;}
-				}
+				let z = gamewidth/const240p(320/player(1), map(bbtag_outroZoom));
+				zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(pos x/$z)*camerazoom, 0; stagebound:1; camerabound:0;}
 
-				if ((animtime = 0 || (AnimElemVar(Time) <= 0 && AnimElemTime(AnimElemNo(0)) >= 60)) && alive) || (!alive && p2,decisiveRound)
+				if (((AnimElemTime(AnimElemNo(0)) >= player(1), map(bbtag_pauseLength))) && alive) || (!alive && p2,decisiveRound)
 				{
 					map(bbtag_playerOutroFinished) := 1;
 					player(1), map(bbtag_teamOutroState) := player(1), map(bbtag_teamOutroState) + 1;
@@ -732,7 +726,7 @@ ignorehitpause if roundstate = 4 && !ishelper && playerno < 9 && teamSide != 0 &
 		# Music Volume Ducking
 		if player(1), map(bbtag_outroMusicVolumeDuck) = 1 && player(1), map(interp_tick4) <= 60
 		{
-			let v = call InterpolateValue(max(max(player(1), map(starting_volume), 0), player(1), map(bbtag_introMusicDuckVolume)), player(1), map(starting_volume), player(1), map(interp_tick4), 60, player(1), map(bbtag_introMusicInterpolateMode));
+			let v = call InterpolateValue(max(max(player(1), map(starting_volume), 0), (player(1), map(starting_volume)*player(1), map(bbtag_introMusicDuckVolume))), player(1), map(starting_volume), player(1), map(interp_tick4), 60, player(1), map(bbtag_introMusicInterpolateMode));
 			player(1), map(interp_tick4) := player(1), map(interp_tick4) + 1;
 			ModifyBGM{volume:$v}
 		}
@@ -774,6 +768,5 @@ if roundstate = 0 && !isHelper && playerno < 9
 	map(bbtag_playerOutroFinished) := 0;
 	map(bbtag_specialOutro) := 0;
 	player(1), map(bbtag_specialOutroActive) := 0;
-	map(_temp) := 0;
 }
 }
