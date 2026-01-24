@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.7b == #
+# == BBTAG Intro Module v 1.0.7c == #
 #
 #	by dionednd
 #
@@ -117,6 +117,9 @@
 #
 #	v1.0.7b
 #	- Made the module not function for the training mode (got the idea from CD2)
+#	
+#	v1.0.7c
+#	- Added Intro Skip Support for Intro Movement and Stage Intro.
 #	
 # == How To Install == #
 #
@@ -254,7 +257,7 @@ notHitBy{value: SCA}
 [StateDef -3]
 ignorehitpause if gamemode != "training" {
 if playerno < 9 {
-	if (player(1), map(bbtag_introMovement) || player(1), map(bbtag_introSkipDisabled) || player(1), map(bbtag_stageIntro)) && !isHelper && roundstate < 2
+	if player(1), map(bbtag_introSkipDisabled) && !isHelper && roundstate < 2
 	{
 		assertspecial{flag:roundnotskip;}
 	}
@@ -304,7 +307,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		player(1), map(bbtag_introMovementTime) := 180;
 
 		# Disable Intro Skip. always on whenever Intro Movement is on.
-		player(1), map(bbtag_introSkipDisabled) := 1;
+		player(1), map(bbtag_introSkipDisabled) := 0;
 
 		# Enable Stage Intro.
 		player(1), map(bbtag_stageIntro) := 1;
@@ -394,11 +397,38 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 			pausemovetime:-1;
 		}
 	}
+	
 
 	if player(1), map(bbtag_introMusicFirstRound) = 2 && !player(1), map(starting_volume) && roundstate = 0
 	{
 		# i needed to add this due to StageVar(music.bgmvolume) not existing. will likely break if you have a module that modifies the bgm volume.
 		player(1), map(starting_volume) := bgmVar(volume);
+	}
+
+	# intro skip for intro movement and stage intro!!!!
+	if (InputTime(a) > 0 || InputTime(b) > 0 || InputTime(c) > 0 || InputTime(x) > 0 || InputTime(y) > 0 || InputTime(z) > 0) && player(1), map(bbtag_introState) < 3 && !player(1), map(bbtag_introSkipDisabled) && player(1), map(introskipped) < 1
+	{
+		player(1), map(introskipped) := 1;
+	}
+
+	if player(1), map(introskipped) = 1
+	{
+		zoom{scale:stagevar(camera.startzoom);lag:0.0;pos:0, 0; stagebound:1; camerabound:0}
+	}
+
+	if player(1), map(introskipped) = 1 && stateno = 0
+	{
+		player(1), map(introskipped) := 0;
+		player(1), map(checkSetIntro) := 1;
+		player(1), map(bbtag_introState) := 3;
+		player(1), map(bbtag_specialIntroActive) := 0;
+		player(1), map(introMovementTimeFinished) := 0;
+		player(1), map(introMovementTime) := 0;
+		player(1), map(bbtag_stageIntroFinished) := 1;
+		player(1), map(interp_tick1) := 61;
+		player(1), map(interp_tick2) := 61;
+		ModifyBGM{volume:player(1), map(starting_volume)}
+		player(1), map(stageIntroTime) := 0;
 	}
 
 	if roundstate = 0 && (((teammode = Single && roundsexisted = roundno-1) || teammode = Simul || teammode = Tag) || roundno = 1) {ModifyBGM{volume:player(1), map(starting_volume)}}
@@ -826,6 +856,7 @@ if (roundstate = [0,1] || roundstate = [2,3]) && !isHelper && playerno < 9
 		player(1), map(bbtag_teamIntroState) := 0;
 		player(1), map(bbtag_specialIntroActive) := 0;
 		player(1), map(introMovementTimeFinished) := 0;
+		player(1), map(introMovementTime) := 0;
 		player(1), map(bbtag_stageIntroFinished) := 1;
 		if ((teammode = Single && roundsexisted = roundno-1) || teammode = Simul || teammode = Tag)
 		{
