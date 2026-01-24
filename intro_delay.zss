@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.7a == #
+# == BBTAG Intro Module v 1.0.7b == #
 #
 #	by dionednd
 #
@@ -114,7 +114,10 @@
 #	- Fixed workaround on tag team mode that prevents the standby player from doing their losepose. now, as long as the player is within stage bounds, the player will do their losepose.
 #	- Fixed intro movement having a 1 frame window that allows attack inputs.
 #	- Fixed losepose not ending the round if the animation has a frame that lasts -1 frames.
-
+#
+#	v1.0.7b
+#	- Made the module not function for the training mode (got the idea from CD2)
+#	
 # == How To Install == #
 #
 #	1. Open your config.ini
@@ -249,7 +252,7 @@ notHitBy{value: SCA}
 # == Global States == #
 
 [StateDef -3]
-ignorehitpause{
+ignorehitpause if gamemode != "training" {
 if playerno < 9 {
 	if (player(1), map(bbtag_introMovement) || player(1), map(bbtag_introSkipDisabled) || player(1), map(bbtag_stageIntro)) && !isHelper && roundstate < 2
 	{
