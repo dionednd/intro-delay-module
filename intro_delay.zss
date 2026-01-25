@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.7c == #
+# == BBTAG Intro Module v 1.0.7d == #
 #
 #	by dionednd
 #
@@ -121,6 +121,8 @@
 #	v1.0.7c
 #	- Added Intro Skip Support for Intro Movement and Stage Intro.
 #	
+#	v1.0.7d
+#	- I forgot to add one map to the intro skip for intro movement and stage intro. should be fixed now.
 # == How To Install == #
 #
 #	1. Open your config.ini
@@ -418,6 +420,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 
 	if player(1), map(introskipped) = 1 && stateno = 0
 	{
+		map(introstate) := 0;
 		player(1), map(introskipped) := 0;
 		player(1), map(checkSetIntro) := 1;
 		player(1), map(bbtag_introState) := 3;
@@ -851,6 +854,7 @@ if (roundstate = [0,1] || roundstate = [2,3]) && !isHelper && playerno < 9
 	if roundstate = [2,3] && !player(1), map(bbtag_introFirstRoundOnly)
 	{
 		#reset intro delay values
+		player(1), map(introskipped) := 0;
 		player(1), map(checkSetIntro) := 0;
 		player(1), map(bbtag_introState) := 0;
 		player(1), map(bbtag_teamIntroState) := 0;
