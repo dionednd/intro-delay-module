@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.7d == #
+# == BBTAG Intro Module v 1.0.7e == #
 #
 #	by dionednd
 #
@@ -123,6 +123,9 @@
 #	
 #	v1.0.7d
 #	- I forgot to add one map to the intro skip for intro movement and stage intro. should be fixed now.
+#	v1.0.7e
+#	- Fixed bugs with intro delay on round 2 and intros still happening even if they're disabled.
+#	- Fixed compatibility issue with Space23's Cable & Storm.
 # == How To Install == #
 #
 #	1. Open your config.ini
@@ -144,7 +147,7 @@
 [Function isPreviousStateIntro()]
 ignorehitpause if roundstate = 1
 {
-	if isAsserted(intro) #&& stateno != 1900000 && stateno != 5900 && stateno != 0
+	if isAsserted(intro) && prevstateno = 5900
 	{
 		map(introstate) := stateno;
 	}
@@ -246,7 +249,7 @@ else if selfAnimExist(191) {
 if cond((teammode = Turns || teammode = Single), 1, memberNo) = player(1), map(bbtag_teamIntroState) && teamSide = player(1), map(bbtag_introState) && player(1), map(bbtag_specialIntroActive) < 1 && (time >= player(1), map(bbtag_pauseLength) || player(1), map(bbtag_pauseLength) = 0)
 && cond(roundno = 1,(player(1), map(bbtag_stageIntroFinished) || !player(1), map(bbtag_stageIntro)),1)
 {
-	changeState{value: cond(Const(PreIntroState),Const(PreIntroState),cond(((teammode = Single && roundsexisted = roundno-1) || teammode = Simul || teammode = Tag) && roundsexisted > 0,190,5900))} #jump to 5900 / 190
+	changeState{value: cond(Const(PreIntroState),Const(PreIntroState),cond(((teammode = Single && roundsexisted = roundno-1) || teammode = Simul || teammode = Tag) && roundsexisted > 0 && !player(1), map(bbtag_introFirstRoundOnly),190,5900))} #jump to 5900 / 190
 }
 
 [Statedef 9000800; type: S; ctrl: 0; velset: 0, 0;]
@@ -276,7 +279,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		# 4 = right to left for both teams
 		player(1), map(bbtag_rollOrder) := 3;
 
-		player(1), map(bbtag_introFirstRoundOnly) := 0;
+		player(1), map(bbtag_introFirstRoundOnly) := 1;
 
 		# Pause (can be 0)
 		player(1), map(bbtag_pauseLength) := 60;
@@ -565,7 +568,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 				let z = player(1), map(bbtag_cameraZoom);
 				zoom{scale:$z;lag:player(1), map(bbtag_cameraLag); pos:(pos x/$z)*camerazoom, 0; stagebound:1; camerabound:0;}
 
-				if stagetime > 8 && stateno = 0 && !map(bbtag_playerIntroFinished) && (map(isprevstatenointro) = 0 || prevstateno = 5900 || prevstateno = 1900000)
+				if stagetime > 8 && (stateno = 0 || anim = 0) && !map(bbtag_playerIntroFinished) && (map(isprevstatenointro) = 0 || prevstateno = 5900 || prevstateno = 1900000)
 				{
 					map(bbtag_playerIntroFinished) := 1;
 					if player(1), map(bbtag_rollOrder) = 1 {player(1), map(bbtag_teamIntroState) := player(1), map(bbtag_teamIntroState) + 1;}
