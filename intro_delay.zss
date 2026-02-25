@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.7e == #
+# == BBTAG Intro Module v 1.0.8 == #
 #
 #	by dionednd
 #
@@ -123,9 +123,18 @@
 #	
 #	v1.0.7d
 #	- I forgot to add one map to the intro skip for intro movement and stage intro. should be fixed now.
+#
 #	v1.0.7e
 #	- Fixed bugs with intro delay on round 2 and intros still happening even if they're disabled.
 #	- Fixed compatibility issue with Space23's Cable & Storm.
+#
+#	v1.0.8
+#	- Adjusted intro skip to only work if introstate is < 3.
+#	- Fixed crash in latest nightly due to a function having the same name as an existing one that kfm_zss uses.
+#	- Fixed issue with Kenshiro99's Characters. other characters that have their intros made the same way should be fixed now, too.
+#	- Implemented workaround for the zoom sctrl not working properly for the first match if executed on the first few frames of a match.
+#	- Added Stage Text through a lua module extension.
+#
 # == How To Install == #
 #
 #	1. Open your config.ini
@@ -147,9 +156,13 @@
 [Function isPreviousStateIntro()]
 ignorehitpause if roundstate = 1
 {
-	if isAsserted(intro) && prevstateno = 5900
+	if isAsserted(intro)
 	{
 		map(introstate) := stateno;
+	}
+	else if !isAsserted(intro)
+	{
+		map(introstate) := 5900;
 	}
 	if map(introstate) != 0
 	{
@@ -192,7 +205,7 @@ else
 
 let ret = $min + ($max - $min) * cond($easedT > 1.0, 1.0, cond($easedT < 0.0, 0.0, $easedT));
 
-[Function IkSys_SelfAnimExistAddMod10(cond, base) ret]
+[Function SelfAnimExistAddMod10(cond, base) ret]
 let ret = cond($cond && selfAnimExist($base + anim % 10),
 	$base + anim % 10, $base);
 
@@ -221,7 +234,7 @@ if !alive {
 	}
 	else
 	{
-		let a = call IkSys_SelfAnimExistAddMod10(anim = [5111, 5119] || anim = [5171, 5179], 5140);
+		let a = call SelfAnimExistAddMod10(anim = [5111, 5119] || anim = [5171, 5179], 5140);
 		if selfAnimExist($a) {
 			changeAnim{value: $a}
 		}
@@ -333,13 +346,13 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		player(1), map(bbtag_IntroDelay) := 60; #60 frames = 1 second
 
 		# Stage Text (Ignored if stage intro is disabled)
-		player(1), map(bbtag_stageText) := 0; #disabled for now. it doesn't display the stage's name due to engine limitations. once we get support for strings, i'll update this feature
+		player(1), map(bbtag_stageText) := 1; #disabled for now. it doesn't display the stage's name due to engine limitations. once we get support for strings, i'll update this feature
 
 		# Stage Text Params
-		player(1), map(bbtag_stageTextFont) := -1;
+		player(1), map(bbtag_stageTextFont) := 7;
 		player(1), map(bbtag_stageTextAlign) := 0;
-		player(1), map(bbtag_stageTextScaleX) := 2;
-		player(1), map(bbtag_stageTextScaleY) := 2;
+		player(1), map(bbtag_stageTextScaleX) := 0.5;
+		player(1), map(bbtag_stageTextScaleY) := 0.5;
 		player(1), map(bbtag_stageTextLayerno) := 0;
 		player(1), map(bbtag_stageTextPosX) := 160;
 		player(1), map(bbtag_stageTextPosY) := 120;
@@ -411,7 +424,7 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 	}
 
 	# intro skip for intro movement and stage intro!!!!
-	if (InputTime(a) > 0 || InputTime(b) > 0 || InputTime(c) > 0 || InputTime(x) > 0 || InputTime(y) > 0 || InputTime(z) > 0) && player(1), map(bbtag_introState) < 3 && !player(1), map(bbtag_introSkipDisabled) && player(1), map(introskipped) < 1
+	if (InputTime(a) > 0 || InputTime(b) > 0 || InputTime(c) > 0 || InputTime(x) > 0 || InputTime(y) > 0 || InputTime(z) > 0) && player(1), map(bbtag_introState) < 3 && !player(1), map(bbtag_introSkipDisabled) && player(1), map(introskipped) < 1 && player(1), map(bbtag_introState) < 3
 	{
 		player(1), map(introskipped) := 1;
 	}
@@ -455,6 +468,8 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		{
 			let c = (256 -  (256*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime))));
 			AllPalFX{mul: $c, $c, $c;time: 2}
+			if stagetime > 0
+			{
 			switch(player(1), map(bbtag_stageIntroScrollOrder))
 			{
 				case 1:
@@ -467,21 +482,10 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 					let pos = stageVar(camera.boundhigh)*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime));
 					zoom{scale:stagevar(camera.startzoom);pos:0, $pos;lag:cond(player(1), map(stageIntroTime) = player(1), map(bbtag_stageIntroTime), 0, player(1), map(bbtag_cameraLag));stagebound:1; camerabound:0}
 			}
+			}
 		}
 		if player(1), map(stageIntroTime) > (player(1), map(bbtag_IntroDelay) * -1) && player(1), map(stageIntroBegun)
 		{
-			# Stage Text
-			if player(1), map(bbtag_stageText) && playerno = 1
-			{
-				if !NumText(135790)
-				{
-					text{text: "Third Heights";localcoord:320,240;layerno:player(1), map(bbtag_stageTextLayerno);font:player(1), map(bbtag_stageTextFont);align:player(1), map(bbtag_stageTextAlign);pos:player(1), map(bbtag_stageTextPosX), player(1), map(bbtag_stageTextPosY);scale:player(1), map(bbtag_stageTextScaleX),player(1), map(bbtag_stageTextScaleY);id:135790;textdelay:8;removetime:player(1), map(bbtag_stageIntroTime)+player(1), map(bbtag_IntroDelay);color:player(1), map(bbtag_stageTextColorR),player(1), map(bbtag_stageTextColorG),player(1), map(bbtag_stageTextColorB),0;}
-				}
-				else if NumText(135790) && player(1), map(stageIntroTime) > (player(1), map(bbtag_IntroDelay) * -1)
-				{
-					ModifyText{id:135790;color:player(1), map(bbtag_stageTextColorR),player(1), map(bbtag_stageTextColorG),player(1), map(bbtag_stageTextColorB), cond(player(1), map(stageIntroTime) <= 0, 256-(256*((player(1), map(stageIntroTime)*-1)/player(1), map(bbtag_IntroDelay))),(256 -  (256*(player(1), map(stageIntroTime)/player(1), map(bbtag_stageIntroTime)))));}
-				}
-			}
 
 			if player(1), map(stageIntroTime) < 0
 			{
