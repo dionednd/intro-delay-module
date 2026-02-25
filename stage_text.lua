@@ -10,7 +10,7 @@ textImgSetProjection(tsStageText, "orthographic")
 textImgSetFocalLength(tsStageText, 2048)
 
 local function cond(condition, t, f)
-    if condition then return t else return f end
+	if condition then return t else return f end
 end
 
 function f_StageText()
@@ -39,5 +39,6 @@ function f_StageText()
 end
 
 hook.add("loop", "StageText", f_StageText)
+
 
 
