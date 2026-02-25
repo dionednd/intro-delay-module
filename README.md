@@ -1,4 +1,4 @@
-# **BBTAG Intro Delay Module (v1.0.7e)**
+# **BBTAG Intro Delay Module (v1.0.8)**
 
 *IKEMEN GO module by **dionednd**, commissioned by **SkeleJ64**.*
 
