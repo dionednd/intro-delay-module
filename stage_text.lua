@@ -14,7 +14,7 @@ local function cond(condition, t, f)
 end
 
 function f_StageText()
-	if gamemode() == "demo" then return end
+	if gameMode() == "demo" then return end
 
 	player(1)
 	if map('bbtag_stageText') == 1 and (map('stageIntroTime') > (map('bbtag_IntroDelay') * -1) and map('stageIntroBegun')) then
