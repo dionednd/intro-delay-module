@@ -1,4 +1,4 @@
-# == BBTAG Intro Module v 1.0.8 == #
+# == BBTAG Intro Module v 1.0.8b == #
 #
 #	by dionednd
 #
@@ -351,8 +351,8 @@ ignorehitpause if roundState = [0,1] && !isHelper && teamSide != 0
 		# Stage Text Params
 		player(1), map(bbtag_stageTextFont) := 7;
 		player(1), map(bbtag_stageTextAlign) := 0;
-		player(1), map(bbtag_stageTextScaleX) := 0.5;
-		player(1), map(bbtag_stageTextScaleY) := 0.5;
+		player(1), map(bbtag_stageTextScaleX) := 2;
+		player(1), map(bbtag_stageTextScaleY) := 2;
 		player(1), map(bbtag_stageTextLayerno) := 0;
 		player(1), map(bbtag_stageTextPosX) := 160;
 		player(1), map(bbtag_stageTextPosY) := 120;
