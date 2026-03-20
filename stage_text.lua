@@ -41,4 +41,3 @@ end
 hook.add("loop", "StageText", f_StageText)
 
 
-
